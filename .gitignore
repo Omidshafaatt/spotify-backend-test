@@ -1,0 +1,4 @@
+.env
+venv/
+profile_images/
+**/__pycache__/
