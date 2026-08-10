@@ -1,3 +1,4 @@
+# music-streaming-backend/accounts/permissions.py
 from rest_framework.permissions import BasePermission
 from .models import User
 

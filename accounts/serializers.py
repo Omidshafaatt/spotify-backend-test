@@ -1,10 +1,14 @@
+# music-streaming-backend/accounts/serializers.py
 import secrets
 import string
 from datetime import date
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import ArtistRequest, User, Artist
+from .models import ArtistRequest, Follow, User, Artist
 from django.contrib.auth import authenticate
+from music.models import Album, Music, MusicStream
+from music.serializers import AlbumWithMusicsSerializer, MusicSerializer
+from drf_spectacular.utils import extend_schema_field
 
 
 class ListenerRegistrationSerializer(serializers.ModelSerializer):
@@ -190,3 +194,137 @@ class ArtistRequestUpdateSerializer(serializers.ModelSerializer):
             user.save(update_fields=['role'])
 
         return instance
+
+
+class FollowSerializer(serializers.Serializer):
+    display_name = serializers.CharField()
+
+    def validate_display_name(self, value):
+        try:
+            target_user = User.objects.get(display_name__iexact=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("User with this display name does not exist.")
+        return target_user
+
+    def validate(self, data):
+        follower = self.context['request'].user
+        following = data['display_name']
+
+        # Follower must be listener or artist
+        if follower.role not in (User.Role.LISTENER, User.Role.ARTIST):
+            raise serializers.ValidationError("You must be a listener or artist to follow someone.")
+
+        # Target must be listener or artist
+        if following.role not in (User.Role.LISTENER, User.Role.ARTIST):
+            raise serializers.ValidationError("You can only follow listeners or artists.")
+
+        # Cannot follow yourself
+        if follower == following:
+            raise serializers.ValidationError("You cannot follow yourself.")
+
+        # Check if already following (prevents duplicate follow)
+        if Follow.objects.filter(follower=follower, following=following).exists():
+            raise serializers.ValidationError("You are already following this user.")
+
+        return data
+
+    def create(self, validated_data):
+        follower = self.context['request'].user
+        following = validated_data['display_name']
+        return Follow.objects.create(follower=follower, following=following)
+
+class UnfollowSerializer(serializers.Serializer):
+    display_name = serializers.CharField()
+
+    def validate_display_name(self, value):
+        try:
+            target_user = User.objects.get(display_name__iexact=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("User with this display name does not exist.")
+        return target_user
+
+    def validate(self, data):
+        follower = self.context['request'].user
+        following = data['display_name']
+
+        # Cannot unfollow yourself (though a follow record shouldn't exist, just in case)
+        if follower == following:
+            raise serializers.ValidationError("You cannot unfollow yourself.")
+
+        # Check if a follow relationship exists
+        if not Follow.objects.filter(follower=follower, following=following).exists():
+            raise serializers.ValidationError("You are not following this user.")
+
+        return data
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    profile_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'username', 'display_name',
+            'birth_date', 'gender', 'role', 'profile_image',
+            'created_at', 'updated_at'
+        ]
+
+    def get_profile_image(self, obj) -> str:   # add -> str
+        if obj.profile_image and hasattr(obj.profile_image, 'url'):
+            return obj.profile_image.url
+        # Return default image URL
+        default_image_url = f"profile_images/base_profile.jpg"
+        # If you have a specific default image file, you can append extension, e.g., .png
+        # For simplicity, we assume the default image is named 'base_profile' (without extension)
+        # or you can use a full URL.
+        return default_image_url
+
+class UpdateListenerProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['display_name', 'profile_image']
+        extra_kwargs = {
+            'display_name': {'required': False},
+            'profile_image': {'required': False},
+        }
+
+    def validate_display_name(self, value):
+        # Ensure uniqueness, excluding the current user
+        if User.objects.filter(display_name__iexact=value).exclude(pk=self.instance.pk).exists():
+            raise serializers.ValidationError("This display name is already taken.")
+        return value
+
+class ArtistProfileSerializer(serializers.Serializer):
+    # We'll use SerializerMethodField for computed fields
+    albums = serializers.SerializerMethodField()
+    singles = serializers.SerializerMethodField()
+    total_streams = serializers.SerializerMethodField()
+    # Basic artist info
+    stage_name = serializers.CharField(source='artist_profile.stage_name')
+    bio = serializers.CharField(source='artist_profile.bio')
+    is_verified = serializers.BooleanField(source='artist_profile.is_verified')
+
+    class Meta:
+        # The source is a User instance, but we access artist_profile
+        fields = ['stage_name', 'bio', 'is_verified', 'albums', 'singles', 'total_streams']
+
+    @extend_schema_field(AlbumWithMusicsSerializer(many=True))
+    def get_albums(self, obj):
+        # obj is a User instance
+        artist = obj.artist_profile
+        # Get all distinct albums that contain at least one music by this artist
+        albums = Album.objects.filter(musics__artists=artist).distinct().order_by('-release_date')
+        return AlbumWithMusicsSerializer(albums, many=True).data
+    
+    @extend_schema_field(MusicSerializer(many=True))
+    def get_singles(self, obj):
+        artist = obj.artist_profile
+        # Get music that belongs to this artist, has no album, and order by release date
+        singles = Music.objects.filter(artists=artist, album__isnull=True).order_by('-release_date')
+        return MusicSerializer(singles, many=True).data
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_total_streams(self, obj):
+        artist = obj.artist_profile
+        # Count all streams for all music of this artist
+        return MusicStream.objects.filter(music__artists=artist).count()
+

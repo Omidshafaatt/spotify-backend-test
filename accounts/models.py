@@ -1,3 +1,4 @@
+# music-streaming-backend/accounts/models.py
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 
@@ -107,3 +108,35 @@ class ArtistRequest(models.Model):
     def __str__(self):
         return f"{self.user.email} - {self.stage_name} - {self.status}"
 
+
+class Follow(models.Model):
+    follower = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="following",
+    )
+
+    following = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="followers",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["follower", "following"],
+                name="unique_follow",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(follower=models.F("following")),
+                name="user_cannot_follow_themselves",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.follower} follows {self.following}"

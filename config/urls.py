@@ -1,3 +1,4 @@
+# music-streaming-backend/config/urls.py
 """
 URL configuration for config project.
 
@@ -22,6 +23,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     path('accounts/', include('accounts.urls')),
+    path('subscriptions/', include('subscriptions.urls')),
+    path('music/', include('music.urls')),
 
     # OpenAPI schema and Swagger UI
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

@@ -1,3 +1,4 @@
+# music-streaming-backend/config/settings.py
 """
 Django settings for config project.
 
@@ -29,7 +30,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['192.168.8.109', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -47,11 +48,16 @@ INSTALLED_APPS = [
 
     'rest_framework_simplejwt',
 
+    'corsheaders',
+
     'accounts',
-    'subscriptions'
+    'subscriptions',
+    'music',
+    'ticket',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -158,3 +164,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 AUTH_USER_MODEL = 'accounts.User'
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]

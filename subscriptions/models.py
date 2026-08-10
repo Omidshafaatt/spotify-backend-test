@@ -1,3 +1,4 @@
+# music-streaming-backend/subscriptions/models.py
 from django.conf import settings
 from django.db import models
 
