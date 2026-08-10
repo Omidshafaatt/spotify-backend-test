@@ -7,16 +7,18 @@ from accounts.models import Artist
 
 
 class Album(models.Model):
-    title = models.CharField(max_length=200)
-
-    cover = models.ImageField(
-        upload_to="album_covers/",
+    
+    artist = models.ForeignKey(
+        Artist,
+        on_delete=models.CASCADE,
+        related_name="albums",
         null=True,
-        blank=True,
+        blank=True
     )
-
+    
+    title = models.CharField(max_length=200)
+    cover = models.ImageField(upload_to="albums/covers/%Y/%m/", null=True, blank=True)
     release_date = models.DateField()
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -36,7 +38,7 @@ class Music(models.Model):
     )
 
     audio_file = models.FileField(
-        upload_to="music/",
+        upload_to="tracks/audio/%Y/%m/",
     )
 
     lyrics = models.TextField(
@@ -44,7 +46,7 @@ class Music(models.Model):
     )
 
     cover = models.ImageField(
-        upload_to="music_covers/",
+        upload_to="tracks/covers/%Y/%m/",
         null=True,
         blank=True,
     )

@@ -3,6 +3,12 @@ from rest_framework import serializers
 from .models import Music, Playlist, Album
 from subscriptions.utils import get_effective_plan
 from .models import MusicArtist
+from accounts.models import Artist
+
+class ArtistBasicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Artist
+        fields = ['id', 'stage_name']
 
 class PlaylistSerializer(serializers.ModelSerializer):
     """Base serializer for listing and updating playlists."""
@@ -42,11 +48,13 @@ class AddRemoveMusicSerializer(serializers.Serializer):
 
 
 class MusicSerializer(serializers.ModelSerializer):
+    artists = ArtistBasicSerializer(many=True, read_only=True) # اضافه کردن آرتیست به خروجی
+
     class Meta:
         model = Music
         fields = [
-            'id', 'title', 'audio_file', 'lyrics', 'cover',
-            'genre', 'release_date', 'duration', 'created_at'
+            'id', 'title', 'album', 'audio_file', 'lyrics', 'cover',
+            'genre', 'release_date', 'duration', 'created_at', 'artists'
         ]
 
 
@@ -59,6 +67,15 @@ class AlbumWithMusicsSerializer(serializers.ModelSerializer):
 
 
 class AlbumCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Album
+        fields = ['id', 'title', 'cover', 'release_date']
+
+    def create(self, validated_data):
+        # اضافه کردن خودکار هنرمند به آلبوم موقع ساخت
+        user = self.context['request'].user
+        validated_data['artist'] = user.artist_profile
+        return super().create(validated_data)
     class Meta:
         model = Album
         fields = ['id', 'title', 'cover', 'release_date']

@@ -205,3 +205,12 @@ class ArtistProfileView(generics.RetrieveAPIView):
             )
         serializer = self.get_serializer(user)
         return Response(serializer.data)
+
+
+from .models import Artist
+from .serializers import PublicArtistSerializer
+
+class PublicArtistDetailView(generics.RetrieveAPIView):
+    queryset = Artist.objects.all()
+    serializer_class = PublicArtistSerializer
+    permission_classes = [AllowAny]

@@ -328,3 +328,20 @@ class ArtistProfileSerializer(serializers.Serializer):
         # Count all streams for all music of this artist
         return MusicStream.objects.filter(music__artists=artist).count()
 
+class PublicArtistSerializer(serializers.ModelSerializer):
+    singles = serializers.SerializerMethodField()
+    albums = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Artist
+        fields = ['id', 'stage_name', 'bio', 'is_verified', 'singles', 'albums']
+
+    @extend_schema_field(MusicSerializer(many=True))
+    def get_singles(self, obj):
+        singles = Music.objects.filter(artists=obj, album__isnull=True).order_by('-release_date')
+        return MusicSerializer(singles, many=True).data
+
+    @extend_schema_field(AlbumWithMusicsSerializer(many=True))
+    def get_albums(self, obj):
+        albums = Album.objects.filter(musics__artists=obj).distinct().order_by('-release_date')
+        return AlbumWithMusicsSerializer(albums, many=True).data

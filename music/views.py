@@ -2,12 +2,15 @@
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Playlist
+from .models import Playlist,Music, Album
 from .serializers import PlaylistSerializer, PlaylistCreateSerializer, AddRemoveMusicSerializer
 from .permissions import IsListenerOrArtist
 from rest_framework.parsers import MultiPartParser, FormParser
 from .serializers import AlbumCreateSerializer, MusicCreateSerializer
 from .permissions import IsArtist
+from rest_framework.permissions import AllowAny
+from .serializers import MusicSerializer, AlbumWithMusicsSerializer
+
 
 
 class PlaylistCreateView(generics.CreateAPIView):
@@ -133,3 +136,27 @@ class MusicCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated, IsArtist]
     serializer_class = MusicCreateSerializer
     parser_classes = [MultiPartParser, FormParser]
+
+
+class MusicListView(generics.ListAPIView):
+    queryset = Music.objects.all().order_by('-created_at')
+    serializer_class = MusicSerializer
+    permission_classes = [AllowAny] # همه می‌تونن لیست آهنگ‌ها رو ببینن
+
+class AlbumListView(generics.ListAPIView):
+    queryset = Album.objects.all().order_by('-created_at')
+    serializer_class = AlbumWithMusicsSerializer
+    permission_classes = [AllowAny]    
+
+class AlbumDetailView(generics.RetrieveAPIView):
+    queryset = Album.objects.all()
+    serializer_class = AlbumWithMusicsSerializer
+    permission_classes = [AllowAny]
+
+class MyAlbumsListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated, IsArtist]
+    serializer_class = AlbumWithMusicsSerializer
+    
+    def get_queryset(self):
+        # برگرداندن تمام آلبوم‌های هنرمندی که لاگین کرده است
+        return Album.objects.filter(artist=self.request.user.artist_profile).order_by('-created_at')
