@@ -5,7 +5,9 @@ from rest_framework.response import Response
 from .models import Playlist
 from .serializers import PlaylistSerializer, PlaylistCreateSerializer, AddRemoveMusicSerializer
 from .permissions import IsListenerOrArtist
-
+from rest_framework.parsers import MultiPartParser, FormParser
+from .serializers import AlbumCreateSerializer, MusicCreateSerializer
+from .permissions import IsArtist
 
 
 class PlaylistCreateView(generics.CreateAPIView):
@@ -120,3 +122,14 @@ class RemoveMusicFromPlaylistView(generics.GenericAPIView):
             {"detail": f"Music '{music.title}' removed from playlist '{playlist.name}'."},
             status=status.HTTP_204_NO_CONTENT
         )
+
+
+class AlbumCreateView(generics.CreateAPIView):
+    permission_classes = [IsAuthenticated, IsArtist]
+    serializer_class = AlbumCreateSerializer
+    parser_classes = [MultiPartParser, FormParser]
+
+class MusicCreateView(generics.CreateAPIView):
+    permission_classes = [IsAuthenticated, IsArtist]
+    serializer_class = MusicCreateSerializer
+    parser_classes = [MultiPartParser, FormParser]

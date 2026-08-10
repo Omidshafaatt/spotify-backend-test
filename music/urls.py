@@ -1,9 +1,13 @@
 # music-streaming-backend/music/urls.py
 from django.urls import path
 from .views import (PlaylistCreateView, PlaylistUpdateView, PlaylistDeleteView,
-                    AddMusicToPlaylistView, RemoveMusicFromPlaylistView)
+                    AddMusicToPlaylistView, RemoveMusicFromPlaylistView,
+                    AlbumCreateView, MusicCreateView)
 
 urlpatterns = [
+  # اندپوینت‌های جدید برای ساخت آلبوم و موزیک
+    path('albums/create/', AlbumCreateView.as_view(), name='album-create'),
+    path('musics/create/', MusicCreateView.as_view(), name='music-create'),
     path('playlists/', PlaylistCreateView.as_view(), name='playlist-create'),
     path('playlists/<int:pk>/', PlaylistUpdateView.as_view(), name='playlist-update'),
     path('playlists/<int:pk>/', PlaylistDeleteView.as_view(), name='playlist-delete'),

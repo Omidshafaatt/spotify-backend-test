@@ -2,6 +2,7 @@
 from rest_framework import serializers
 from .models import Music, Playlist, Album
 from subscriptions.utils import get_effective_plan
+from .models import MusicArtist
 
 class PlaylistSerializer(serializers.ModelSerializer):
     """Base serializer for listing and updating playlists."""
@@ -57,3 +58,28 @@ class AlbumWithMusicsSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'cover', 'release_date', 'created_at', 'musics']
 
 
+class AlbumCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Album
+        fields = ['id', 'title', 'cover', 'release_date']
+
+class MusicCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Music
+        fields = [
+            'id', 'title', 'album', 'audio_file', 'lyrics', 'cover',
+            'genre', 'release_date', 'duration'
+        ]
+
+    def create(self, validated_data):
+        # 1. ساخت خود موزیک
+        music = Music.objects.create(**validated_data)
+        
+        # 2. دریافت پروفایل هنرمندی که درخواست را فرستاده است
+        user = self.context['request'].user
+        artist_profile = user.artist_profile
+        
+        # 3. ایجاد ارتباط بین این موزیک و هنرمند در جدول واسط
+        MusicArtist.objects.create(music=music, artist=artist_profile)
+        
+        return music

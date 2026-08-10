@@ -9,3 +9,10 @@ class IsListenerOrArtist(BasePermission):
     """
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role in (User.Role.LISTENER, User.Role.ARTIST)
+
+class IsArtist(BasePermission):
+    """
+    Allows access only to users with the 'artist' role.
+    """
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == User.Role.ARTIST
