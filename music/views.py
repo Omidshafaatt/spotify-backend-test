@@ -1,17 +1,18 @@
-# music-streaming-backend/music/views.py
+# music/views.py
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from .models import Playlist,Music, Album
-from .serializers import PlaylistSerializer, PlaylistCreateSerializer, AddRemoveMusicSerializer
-from .permissions import IsListenerOrArtist
+from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
-from .serializers import AlbumCreateSerializer, MusicCreateSerializer
-from .permissions import IsArtist
-from rest_framework.permissions import AllowAny
-from .serializers import MusicSerializer, AlbumWithMusicsSerializer
+from django.shortcuts import get_object_or_404
+from django.db.models import Max
 
-
+from .models import Playlist, PlaylistMusic, Album, Music, MusicStream
+from .serializers import (PlaylistSerializer, PlaylistCreateSerializer, 
+                          AddRemoveMusicSerializer, AlbumCreateSerializer, 
+                          MusicCreateSerializer, MusicSerializer, 
+                          AlbumWithMusicsSerializer)
+from .permissions import IsListenerOrArtist, IsArtist
 
 class PlaylistCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated, IsListenerOrArtist]
@@ -20,22 +21,17 @@ class PlaylistCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
-
 class PlaylistUpdateView(generics.UpdateAPIView):
     permission_classes = [IsAuthenticated, IsListenerOrArtist]
     serializer_class = PlaylistSerializer
-    # Only allow updating 'name' (partial updates)
     http_method_names = ['patch', 'put']
 
     def get_queryset(self):
-        # Ensure user can only update their own playlists
         return Playlist.objects.filter(owner=self.request.user)
-
 
 class PlaylistDeleteView(generics.DestroyAPIView):
     permission_classes = [IsAuthenticated, IsListenerOrArtist]
     serializer_class = PlaylistSerializer 
-    # Only allow deleting own playlists
     def get_queryset(self):
         return Playlist.objects.filter(owner=self.request.user)
 
@@ -45,45 +41,27 @@ class AddMusicToPlaylistView(generics.GenericAPIView):
 
     def get_playlist(self, pk):
         try:
-            playlist = Playlist.objects.get(pk=pk, owner=self.request.user)
-            return playlist
+            return Playlist.objects.get(pk=pk, owner=self.request.user)
         except Playlist.DoesNotExist:
             return None
 
     def post(self, request, pk, *args, **kwargs):
         playlist = self.get_playlist(pk)
         if playlist is None:
-            return Response(
-                {"detail": "Playlist not found or you don't own it."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Playlist not found."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         music = serializer.validated_data['music_id']
 
-        # Check if music already in playlist
         if PlaylistMusic.objects.filter(playlist=playlist, music=music).exists():
-            return Response(
-                {"detail": "This music is already in the playlist."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Already in playlist."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Get max position and add at the end
-        max_position = PlaylistMusic.objects.filter(playlist=playlist).aggregate(Max('position'))['position__max']
-        position = (max_position or 0) + 1
+        max_pos = PlaylistMusic.objects.filter(playlist=playlist).aggregate(Max('position'))['position__max']
+        position = (max_pos or 0) + 1
 
-        PlaylistMusic.objects.create(
-            playlist=playlist,
-            music=music,
-            position=position
-        )
-
-        return Response(
-            {"detail": f"Music '{music.title}' added to playlist '{playlist.name}'."},
-            status=status.HTTP_201_CREATED
-        )
-
+        PlaylistMusic.objects.create(playlist=playlist, music=music, position=position)
+        return Response({"detail": "Music added."}, status=status.HTTP_201_CREATED)
 
 class RemoveMusicFromPlaylistView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated, IsListenerOrArtist]
@@ -91,41 +69,25 @@ class RemoveMusicFromPlaylistView(generics.GenericAPIView):
 
     def get_playlist(self, pk):
         try:
-            playlist = Playlist.objects.get(pk=pk, owner=self.request.user)
-            return playlist
+            return Playlist.objects.get(pk=pk, owner=self.request.user)
         except Playlist.DoesNotExist:
             return None
 
     def delete(self, request, pk, *args, **kwargs):
         playlist = self.get_playlist(pk)
         if playlist is None:
-            return Response(
-                {"detail": "Playlist not found or you don't own it."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Playlist not found."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         music = serializer.validated_data['music_id']
 
-        # Check if music exists in this playlist
         try:
             playlist_music = PlaylistMusic.objects.get(playlist=playlist, music=music)
+            playlist_music.delete()
+            return Response({"detail": "Music removed."}, status=status.HTTP_204_NO_CONTENT)
         except PlaylistMusic.DoesNotExist:
-            return Response(
-                {"detail": "This music is not in the playlist."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # Delete the entry (this automatically reorders positions? No, we may leave gaps.
-        # Optionally we could reorder, but not required.)
-        playlist_music.delete()
-
-        return Response(
-            {"detail": f"Music '{music.title}' removed from playlist '{playlist.name}'."},
-            status=status.HTTP_204_NO_CONTENT
-        )
-
+            return Response({"detail": "Music not in playlist."}, status=status.HTTP_404_NOT_FOUND)
 
 class AlbumCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated, IsArtist]
@@ -137,16 +99,15 @@ class MusicCreateView(generics.CreateAPIView):
     serializer_class = MusicCreateSerializer
     parser_classes = [MultiPartParser, FormParser]
 
-
 class MusicListView(generics.ListAPIView):
     queryset = Music.objects.all().order_by('-created_at')
     serializer_class = MusicSerializer
-    permission_classes = [AllowAny] # همه می‌تونن لیست آهنگ‌ها رو ببینن
+    permission_classes = [AllowAny]
 
 class AlbumListView(generics.ListAPIView):
     queryset = Album.objects.all().order_by('-created_at')
     serializer_class = AlbumWithMusicsSerializer
-    permission_classes = [AllowAny]    
+    permission_classes = [AllowAny]
 
 class AlbumDetailView(generics.RetrieveAPIView):
     queryset = Album.objects.all()
@@ -158,5 +119,24 @@ class MyAlbumsListView(generics.ListAPIView):
     serializer_class = AlbumWithMusicsSerializer
     
     def get_queryset(self):
-        # برگرداندن تمام آلبوم‌های هنرمندی که لاگین کرده است
         return Album.objects.filter(artist=self.request.user.artist_profile).order_by('-created_at')
+
+class ToggleLikeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        music = get_object_or_404(Music, pk=pk)
+        if request.user in music.likes.all():
+            music.likes.remove(request.user)
+            return Response({"detail": "Unliked", "is_liked": False}, status=status.HTTP_200_OK)
+        else:
+            music.likes.add(request.user)
+            return Response({"detail": "Liked", "is_liked": True}, status=status.HTTP_200_OK)
+
+class RecordStreamView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        music = get_object_or_404(Music, pk=pk)
+        MusicStream.objects.create(user=request.user, music=music)
+        return Response({"detail": "Stream recorded successfully"}, status=status.HTTP_201_CREATED)

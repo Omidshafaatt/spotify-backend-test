@@ -36,6 +36,12 @@ class Music(models.Model):
         blank=True,
         related_name="musics",
     )
+    
+    likes = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="liked_musics",
+        blank=True
+    )
 
     audio_file = models.FileField(
         upload_to="tracks/audio/%Y/%m/",

@@ -331,17 +331,26 @@ class ArtistProfileSerializer(serializers.Serializer):
 class PublicArtistSerializer(serializers.ModelSerializer):
     singles = serializers.SerializerMethodField()
     albums = serializers.SerializerMethodField()
+    user_display_name = serializers.SerializerMethodField() # تبدیل به متد امن
 
     class Meta:
         model = Artist
-        fields = ['id', 'stage_name', 'bio', 'is_verified', 'singles', 'albums']
+        fields = ['id', 'user_display_name', 'stage_name', 'bio', 'is_verified', 'singles', 'albums']
 
-    @extend_schema_field(MusicSerializer(many=True))
+    def get_user_display_name(self, obj):
+        # گرفتن نام کاربری به صورت کاملاً امن که تحت هیچ شرایطی ارور ندهد
+        try:
+            if hasattr(obj, 'user') and obj.user:
+                return getattr(obj.user, 'display_name', obj.user.username)
+            return "Unknown"
+        except Exception:
+            return "Unknown"
+
     def get_singles(self, obj):
         singles = Music.objects.filter(artists=obj, album__isnull=True).order_by('-release_date')
-        return MusicSerializer(singles, many=True).data
+        # پاس دادن کانتکست برای کار کردن صحیح لایک‌ها
+        return MusicSerializer(singles, many=True, context=self.context).data
 
-    @extend_schema_field(AlbumWithMusicsSerializer(many=True))
     def get_albums(self, obj):
         albums = Album.objects.filter(musics__artists=obj).distinct().order_by('-release_date')
-        return AlbumWithMusicsSerializer(albums, many=True).data
+        return AlbumWithMusicsSerializer(albums, many=True, context=self.context).data

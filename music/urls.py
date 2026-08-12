@@ -2,10 +2,12 @@
 from django.urls import path
 from .views import (PlaylistCreateView, PlaylistUpdateView, PlaylistDeleteView,
                     AddMusicToPlaylistView, RemoveMusicFromPlaylistView,
-                    AlbumCreateView, MusicCreateView,MusicListView,AlbumListView,AlbumDetailView,MyAlbumsListView)
+                    AlbumCreateView, MusicCreateView,MusicListView,AlbumListView,AlbumDetailView,MyAlbumsListView,ToggleLikeView,RecordStreamView)
 
 urlpatterns = [
   # اندپوینت‌های جدید برای ساخت آلبوم و موزیک
+    path('musics/<int:pk>/like/', ToggleLikeView.as_view(), name='music-like'),
+    path('musics/<int:pk>/stream/', RecordStreamView.as_view(), name='music-stream'),
     path('my-albums/', MyAlbumsListView.as_view(), name='my-albums'), 
     path('albums/<int:pk>/', AlbumDetailView.as_view(), name='album-detail'),
     path('musics/', MusicListView.as_view(), name='music-list'),

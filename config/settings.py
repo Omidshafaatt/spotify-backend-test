@@ -14,6 +14,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from datetime import timedelta
 
 load_dotenv()  # loads variables from .env
 
@@ -171,3 +172,11 @@ CORS_ALLOWED_ORIGINS = [
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),  # توکن اصلی تا ۷ روز منقضی نمی‌شود
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30), # توکن رفرش تا ۳۰ روز معتبر است
+    
+    
+}

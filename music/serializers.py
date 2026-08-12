@@ -1,8 +1,7 @@
-# music-streaming-backend/music/serializers.py
+# music/serializers.py
 from rest_framework import serializers
-from .models import Music, Playlist, Album
+from .models import Music, Playlist, Album, MusicArtist, PlaylistMusic, MusicStream
 from subscriptions.utils import get_effective_plan
-from .models import MusicArtist
 from accounts.models import Artist
 
 class ArtistBasicSerializer(serializers.ModelSerializer):
@@ -16,7 +15,6 @@ class PlaylistSerializer(serializers.ModelSerializer):
         model = Playlist
         fields = ['id', 'name', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
-
 
 class PlaylistCreateSerializer(PlaylistSerializer):
     """Adds validation for max_playlists on creation."""
@@ -45,18 +43,33 @@ class AddRemoveMusicSerializer(serializers.Serializer):
             raise serializers.ValidationError("Music not found.")
         return music
 
-
-
 class MusicSerializer(serializers.ModelSerializer):
-    artists = ArtistBasicSerializer(many=True, read_only=True) # اضافه کردن آرتیست به خروجی
+    artists = ArtistBasicSerializer(many=True, read_only=True)
+    
+    # فیلدهای محاسباتی جدید برای لایک و استریم
+    likes_count = serializers.SerializerMethodField()
+    streams_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
 
     class Meta:
         model = Music
         fields = [
             'id', 'title', 'album', 'audio_file', 'lyrics', 'cover',
-            'genre', 'release_date', 'duration', 'created_at', 'artists'
+            'genre', 'release_date', 'duration', 'created_at', 'artists',
+            'likes_count', 'streams_count', 'is_liked' 
         ]
 
+    def get_likes_count(self, obj):
+        return obj.likes.count()
+
+    def get_streams_count(self, obj):
+        return obj.streams.count()
+
+    def get_is_liked(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(id=request.user.id).exists()
+        return False
 
 class AlbumWithMusicsSerializer(serializers.ModelSerializer):
     musics = MusicSerializer(many=True, read_only=True)
@@ -65,20 +78,15 @@ class AlbumWithMusicsSerializer(serializers.ModelSerializer):
         model = Album
         fields = ['id', 'title', 'cover', 'release_date', 'created_at', 'musics']
 
-
 class AlbumCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Album
         fields = ['id', 'title', 'cover', 'release_date']
 
     def create(self, validated_data):
-        # اضافه کردن خودکار هنرمند به آلبوم موقع ساخت
         user = self.context['request'].user
         validated_data['artist'] = user.artist_profile
         return super().create(validated_data)
-    class Meta:
-        model = Album
-        fields = ['id', 'title', 'cover', 'release_date']
 
 class MusicCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -89,14 +97,8 @@ class MusicCreateSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        # 1. ساخت خود موزیک
         music = Music.objects.create(**validated_data)
-        
-        # 2. دریافت پروفایل هنرمندی که درخواست را فرستاده است
         user = self.context['request'].user
         artist_profile = user.artist_profile
-        
-        # 3. ایجاد ارتباط بین این موزیک و هنرمند در جدول واسط
         MusicArtist.objects.create(music=music, artist=artist_profile)
-        
         return music
