@@ -11,10 +11,16 @@ class ArtistBasicSerializer(serializers.ModelSerializer):
 
 class PlaylistSerializer(serializers.ModelSerializer):
     """Base serializer for listing and updating playlists."""
+    # فیلد جدید برای شمردن تعداد آهنگ‌های داخل پلی‌لیست
+    songs_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Playlist
-        fields = ['id', 'name', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'cover', 'songs_count', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'songs_count']
+
+    def get_songs_count(self, obj):
+        return obj.musics.count()
 
 class PlaylistCreateSerializer(PlaylistSerializer):
     """Adds validation for max_playlists on creation."""
@@ -102,3 +108,11 @@ class MusicCreateSerializer(serializers.ModelSerializer):
         artist_profile = user.artist_profile
         MusicArtist.objects.create(music=music, artist=artist_profile)
         return music
+
+class PlaylistDetailSerializer(serializers.ModelSerializer):
+    musics = MusicSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Playlist
+        # فیلد cover اینجا جا مانده بود که اضافه شد!
+        fields = ['id', 'name', 'cover', 'created_at', 'updated_at', 'musics']

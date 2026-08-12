@@ -119,6 +119,8 @@ class Playlist(models.Model):
         max_length=200,
     )
 
+    cover = models.ImageField(upload_to="playlists/covers/%Y/%m/", null=True, blank=True)
+    
     musics = models.ManyToManyField(
         Music,
         through="PlaylistMusic",

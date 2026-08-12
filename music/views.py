@@ -11,13 +11,13 @@ from .models import Playlist, PlaylistMusic, Album, Music, MusicStream
 from .serializers import (PlaylistSerializer, PlaylistCreateSerializer, 
                           AddRemoveMusicSerializer, AlbumCreateSerializer, 
                           MusicCreateSerializer, MusicSerializer, 
-                          AlbumWithMusicsSerializer)
+                          AlbumWithMusicsSerializer,PlaylistDetailSerializer)
 from .permissions import IsListenerOrArtist, IsArtist
 
 class PlaylistCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated, IsListenerOrArtist]
     serializer_class = PlaylistCreateSerializer
-
+    parser_classes = [MultiPartParser, FormParser]
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
@@ -25,7 +25,7 @@ class PlaylistUpdateView(generics.UpdateAPIView):
     permission_classes = [IsAuthenticated, IsListenerOrArtist]
     serializer_class = PlaylistSerializer
     http_method_names = ['patch', 'put']
-
+    parser_classes = [MultiPartParser, FormParser]
     def get_queryset(self):
         return Playlist.objects.filter(owner=self.request.user)
 
@@ -140,3 +140,19 @@ class RecordStreamView(APIView):
         music = get_object_or_404(Music, pk=pk)
         MusicStream.objects.create(user=request.user, music=music)
         return Response({"detail": "Stream recorded successfully"}, status=status.HTTP_201_CREATED)
+
+class MyPlaylistsListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = PlaylistSerializer
+
+    def get_queryset(self):
+        # برگرداندن تمام پلی‌لیست‌های کاربری که لاگین کرده
+        return Playlist.objects.filter(owner=self.request.user).order_by('-created_at')
+
+class PlaylistDetailView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = PlaylistDetailSerializer
+    
+    def get_queryset(self):
+        # کاربر فقط بتونه پلی‌لیست‌های خودش رو ببینه
+        return Playlist.objects.filter(owner=self.request.user)
