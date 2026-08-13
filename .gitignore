@@ -2,3 +2,5 @@
 venv/
 profile_images/
 **/__pycache__/
+media/
+music_covers/
