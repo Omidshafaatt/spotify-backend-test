@@ -89,3 +89,5 @@ print("Plans and prices created successfully!")
 
 pip install djangorestframework-simplejwt
 pip install django-cors-headers
+pip install requests
+pip install python-dateutil

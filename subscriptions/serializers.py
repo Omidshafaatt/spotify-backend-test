@@ -1,6 +1,6 @@
 # music-streaming-backend/subscriptions/serializers.py
 from rest_framework import serializers
-from .models import SubscriptionPlan, SubscriptionPrice
+from .models import SubscriptionPlan, SubscriptionPrice, SubscriptionPrice
 
 class SubscriptionPriceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -19,6 +19,20 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
             'can_view_statistics', 'is_active', 'prices'
         ]
 
+class ActiveSubscriptionPriceSerializer(serializers.ModelSerializer):
+    """Serializer for active prices – includes nested plan info."""
+    plan = SubscriptionPlanSerializer(read_only=True)
+
+    class Meta:
+        model = SubscriptionPrice
+        fields = [
+            "id",
+            "plan",
+            "duration_months",
+            "price",
+            "is_active",
+        ]
+
 class CurrentUserSubscriptionSerializer(serializers.Serializer):
     plan = SubscriptionPlanSerializer()
     price = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
@@ -27,3 +41,26 @@ class CurrentUserSubscriptionSerializer(serializers.Serializer):
     end_date = serializers.DateTimeField(allow_null=True)
     status = serializers.CharField()
     is_default_base = serializers.BooleanField()
+
+
+class PaymentCreateSerializer(serializers.Serializer):
+    price_id = serializers.IntegerField()
+
+    def validate_price_id(self, value):
+        try:
+            price = SubscriptionPrice.objects.select_related("plan").get(
+                id=value,
+                is_active=True,
+                plan__is_active=True,
+            )
+        except SubscriptionPrice.DoesNotExist:
+            raise serializers.ValidationError(
+                "Selected subscription price does not exist or is inactive."
+            )
+
+        self._price = price
+        return value
+
+    @property
+    def price(self):
+        return getattr(self, "_price", None)

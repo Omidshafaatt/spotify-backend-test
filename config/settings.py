@@ -176,7 +176,29 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=7),  # توکن اصلی تا ۷ روز منقضی نمی‌شود
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=30), # توکن رفرش تا ۳۰ روز معتبر است
-    
-    
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30), # توکن رفرش تا ۳۰ روز معتبر است 
 }
+
+ZARINPAL_MERCHANT_ID = os.getenv(
+    "ZARINPAL_MERCHANT_ID"
+)
+
+ZARINPAL_REQUEST_URL = (
+    "https://sandbox.zarinpal.com/pg/v4/payment/request.json"
+)
+
+ZARINPAL_START_PAY_URL = (
+    "https://sandbox.zarinpal.com/pg/StartPay"
+)
+
+ZARINPAL_CALLBACK_URL = (
+    "http://127.0.0.1:8000/subscriptions/payments/callback/"
+)
+
+ZARINPAL_VERIFY_URL = (
+    "https://sandbox.zarinpal.com/pg/v4/payment/verify.json"
+)
+
+FRONTEND_PAYMENT_RESULT_URL = (
+    "http://localhost:3000/subscriptions/payment-result"
+)

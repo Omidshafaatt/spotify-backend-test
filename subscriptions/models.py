@@ -98,3 +98,72 @@ class UserSubscription(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.subscription_price.plan.name}"
+
+
+class PaymentTransaction(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SUCCESS = "success", "Success"
+        FAILED = "failed", "Failed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="payment_transactions",
+    )
+
+    subscription_price = models.ForeignKey(
+        SubscriptionPrice,
+        on_delete=models.PROTECT,
+        related_name="payment_transactions",
+    )
+
+    # The amount at the time the transaction was created.
+    # We keep this separately from SubscriptionPrice.price because
+    # the price may change later.
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    # Authority returned by ZarinPal when creating a payment request.
+    authority = models.CharField(
+        max_length=255,
+        unique=True,
+        null=True,
+        blank=True,
+    )
+
+    # Reference ID returned by ZarinPal after successful verification.
+    ref_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    paid_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    verified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    def __str__(self):
+        return (
+            f"{self.user.email} - "
+            f"{self.subscription_price.plan.name} - "
+            f"{self.amount} - "
+            f"{self.status}"
+        )
