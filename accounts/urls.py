@@ -1,3 +1,4 @@
+# music-streaming-backend/accounts/urls.py
 from django.urls import path
 from .views import (ArtistRequestCreateView, ArtistRequestHistoryView, ArtistRequestListView,
                     ArtistRequestUpdateView, CurrentUserDailyStreamsView, CurrentUserFollowStatsView, FollowCreateView, ListenerRegisterView, LoginView,
@@ -20,5 +21,6 @@ urlpatterns = [
     path('users/follow-stats/', UserFollowStatsByDisplayNameView.as_view(), name='user-follow-stats-by-display-name'),
     path('me/daily-streams/', CurrentUserDailyStreamsView.as_view(), name='current-user-daily-streams'),
     path('users/daily-streams/', UserDailyStreamsByDisplayNameView.as_view(), name='user-daily-streams-by-display-name'),
+    path('profile/artist/update/', UpdateArtistProfileView.as_view(), name='update-artist-profile'),
     # ... other URLs
 ]

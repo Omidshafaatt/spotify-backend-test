@@ -365,3 +365,45 @@ class DailyStreamsSerializer(serializers.Serializer):
     total_streams = serializers.IntegerField()
     days_active = serializers.IntegerField()
     average_daily_streams = serializers.FloatField()
+
+class UpdateArtistProfileSerializer(serializers.ModelSerializer):
+    stage_name = serializers.CharField(max_length=100, required=False)
+    bio = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = User
+        fields = ['display_name', 'profile_image', 'stage_name', 'bio']
+        extra_kwargs = {
+            'display_name': {'required': False},
+            'profile_image': {'required': False},
+        }
+
+    def validate_display_name(self, value):
+        if User.objects.filter(display_name__iexact=value).exclude(pk=self.instance.pk).exists():
+            raise serializers.ValidationError("This display name is already taken.")
+        return value
+
+    def validate_stage_name(self, value):
+        # Ensure uniqueness of stage_name across all artists, excluding current user
+        if Artist.objects.filter(stage_name__iexact=value).exclude(user=self.instance).exists():
+            raise serializers.ValidationError("This stage name is already taken.")
+        return value
+
+    def update(self, instance, validated_data):
+        # Extract artist-specific fields
+        stage_name = validated_data.pop('stage_name', None)
+        bio = validated_data.pop('bio', None)
+
+        # Update User fields (display_name, profile_image)
+        user = super().update(instance, validated_data)
+
+        # Update Artist fields if present
+        if stage_name is not None or bio is not None:
+            artist = user.artist_profile  # assumes one-to-one exists
+            if stage_name is not None:
+                artist.stage_name = stage_name
+            if bio is not None:
+                artist.bio = bio
+            artist.save()
+
+        return user

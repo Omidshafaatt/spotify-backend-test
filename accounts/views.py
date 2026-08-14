@@ -4,7 +4,7 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .serializers import (ArtistRequestHistorySerializer, ArtistRequestListSerializer, ArtistRequestUpdateSerializer, DailyStreamsSerializer,
                            FollowSerializer, ListenerRegistrationSerializer, LoginSerializer,
-                           ArtistRequestSerializer, UpdateListenerProfileSerializer, UserFollowStatsSerializer, UserProfileSerializer, UnfollowSerializer,
+                           ArtistRequestSerializer, UpdateArtistProfileSerializer, UpdateListenerProfileSerializer, UserFollowStatsSerializer, UserProfileSerializer, UnfollowSerializer,
                            ArtistProfileSerializer)
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
@@ -371,3 +371,54 @@ class UserDailyStreamsByDisplayNameView(generics.GenericAPIView):
             'days_active': days_active,
             'average_daily_streams': round(avg, 2),
         }
+
+
+class UpdateArtistProfileView(generics.UpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UpdateArtistProfileSerializer
+
+    def get_object(self):
+        return self.request.user
+
+    def get_effective_plan(self, user):
+        """Return the active subscription plan or the Base plan if none active."""
+        active_sub = UserSubscription.objects.filter(
+            user=user,
+            status=UserSubscription.Status.ACTIVE
+        ).filter(
+            models.Q(end_date__isnull=True) | models.Q(end_date__gte=timezone.now())
+        ).first()
+        if active_sub:
+            return active_sub.subscription_price.plan
+        # Fallback to the 'Base' plan
+        try:
+            return SubscriptionPlan.objects.get(name='Base')
+        except SubscriptionPlan.DoesNotExist:
+            raise serializers.ValidationError(
+                "Base subscription plan not found. Please contact support."
+            )
+
+    def update(self, request, *args, **kwargs):
+        user = self.get_object()
+
+        # Only artists may update their profile via this endpoint
+        if user.role != User.Role.ARTIST:
+            return Response(
+                {"detail": "Only artists can update their profile."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # If a profile image is being uploaded, check subscription permissions
+        if 'profile_image' in request.FILES or 'profile_image' in request.data:
+            plan = self.get_effective_plan(user)
+            if not plan.can_upload_profile_image:
+                return Response(
+                    {"detail": "Your subscription plan does not allow uploading profile images."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        # Perform the update (serializer handles both User and Artist fields)
+        serializer = self.get_serializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
