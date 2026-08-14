@@ -1,8 +1,7 @@
-# music-streaming-backend/accounts/urls.py
 from django.urls import path
 from .views import (ArtistRequestCreateView, ArtistRequestHistoryView, ArtistRequestListView,
-                    ArtistRequestUpdateView, FollowCreateView, ListenerRegisterView, LoginView,
-                    ProfileView, UnfollowView, UpdateListenerProfileView, ArtistProfileView,PublicArtistDetailView)
+                    ArtistRequestUpdateView, CurrentUserDailyStreamsView, CurrentUserFollowStatsView, FollowCreateView, ListenerRegisterView, LoginView,
+                    ProfileView, UnfollowView, UpdateArtistProfileView, UpdateListenerProfileView, ArtistProfileView,PublicArtistDetailView, UserDailyStreamsByDisplayNameView, UserFollowStatsByDisplayNameView)
 
 urlpatterns = [
     path('artists/<int:pk>/', PublicArtistDetailView.as_view(), name='public-artist-detail'),
@@ -14,8 +13,12 @@ urlpatterns = [
     path('artist-requests/<int:pk>/', ArtistRequestUpdateView.as_view(), name='artist-request-update'),
     path('follow/', FollowCreateView.as_view(), name='follow'),
     path('unfollow/', UnfollowView.as_view(), name='unfollow'),
-    path('profile/', ProfileView.as_view(), name='profile'),
+    path('profile/me/', ProfileView.as_view(), name='profile'),
     path('profile/update/', UpdateListenerProfileView.as_view(), name='update-profile'),
-    path('artist/profile/', ArtistProfileView.as_view(), name='artist-profile'),
+    path('artist/profile/me/', ArtistProfileView.as_view(), name='artist-profile'),
+    path('users/me/follow-stats/', CurrentUserFollowStatsView.as_view(), name='current-user-follow-stats'),
+    path('users/follow-stats/', UserFollowStatsByDisplayNameView.as_view(), name='user-follow-stats-by-display-name'),
+    path('me/daily-streams/', CurrentUserDailyStreamsView.as_view(), name='current-user-daily-streams'),
+    path('users/daily-streams/', UserDailyStreamsByDisplayNameView.as_view(), name='user-daily-streams-by-display-name'),
     # ... other URLs
 ]

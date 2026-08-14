@@ -187,7 +187,7 @@ class ArtistRequestUpdateSerializer(serializers.ModelSerializer):
                 user=user,
                 stage_name=instance.stage_name,
                 bio="",  # default empty bio
-                is_verified=False
+                is_verified=True
             )
             # Update user role to ARTIST
             user.role = User.Role.ARTIST
@@ -354,3 +354,14 @@ class PublicArtistSerializer(serializers.ModelSerializer):
     def get_albums(self, obj):
         albums = Album.objects.filter(musics__artists=obj).distinct().order_by('-release_date')
         return AlbumWithMusicsSerializer(albums, many=True, context=self.context).data
+
+class UserFollowStatsSerializer(serializers.Serializer):
+    """Serializer for follower/following counts."""
+    followers_count = serializers.IntegerField()
+    following_count = serializers.IntegerField()
+
+
+class DailyStreamsSerializer(serializers.Serializer):
+    total_streams = serializers.IntegerField()
+    days_active = serializers.IntegerField()
+    average_daily_streams = serializers.FloatField()

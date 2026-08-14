@@ -2,11 +2,11 @@
 from django.core import serializers
 from rest_framework import generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .serializers import (ArtistRequestHistorySerializer, ArtistRequestListSerializer, ArtistRequestUpdateSerializer,
+from .serializers import (ArtistRequestHistorySerializer, ArtistRequestListSerializer, ArtistRequestUpdateSerializer, DailyStreamsSerializer,
                            FollowSerializer, ListenerRegistrationSerializer, LoginSerializer,
-                           ArtistRequestSerializer, UpdateListenerProfileSerializer, UserProfileSerializer, UnfollowSerializer,
+                           ArtistRequestSerializer, UpdateListenerProfileSerializer, UserFollowStatsSerializer, UserProfileSerializer, UnfollowSerializer,
                            ArtistProfileSerializer)
-
+from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -18,6 +18,7 @@ from .permissions import IsAdminOrSupport, IsListenerOrArtist
 from subscriptions.models import SubscriptionPlan, UserSubscription
 from django.db import models
 from django.utils import timezone
+from music.models import MusicStream
 
 class ListenerRegisterView(generics.CreateAPIView):
     serializer_class = ListenerRegistrationSerializer
@@ -214,3 +215,159 @@ class PublicArtistDetailView(generics.RetrieveAPIView):
     queryset = Artist.objects.all()
     serializer_class = PublicArtistSerializer
     permission_classes = [AllowAny]
+
+class CurrentUserFollowStatsView(generics.GenericAPIView):
+    """
+    GET /api/users/me/follow-stats/
+    Returns the follower and following counts for the currently authenticated user.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserFollowStatsSerializer
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        # Count followers (users who follow this user)
+        followers_count = Follow.objects.filter(following=user).count()
+        # Count followings (users this user follows)
+        following_count = Follow.objects.filter(follower=user).count()
+
+        data = {
+            'followers_count': followers_count,
+            'following_count': following_count,
+        }
+        serializer = self.get_serializer(data)
+        return Response(serializer.data)
+    
+
+class UserFollowStatsByDisplayNameView(generics.GenericAPIView):
+    """
+    GET /api/users/follow-stats/?display_name=<name>
+    Returns the follower and following counts for a user with the given display_name.
+    """
+    permission_classes = [IsAuthenticated]  # or allow any
+    serializer_class = UserFollowStatsSerializer
+
+    def get(self, request, *args, **kwargs):
+        display_name = request.query_params.get('display_name')
+        if not display_name:
+            return Response(
+                {'error': 'display_name query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Since display_name is not unique, we need to decide behavior.
+            # Option 1: return the first match (not recommended).
+            # Option 2: require a unique field. But display_name is not unique.
+            # Better: return error if multiple users have the same display_name.
+            users = User.objects.filter(display_name__iexact=display_name)
+            if not users.exists():
+                raise NotFound('No user found with this display name.')
+            if users.count() > 1:
+                return Response(
+                    {'error': f'Multiple users found with display name "{display_name}". Please use a more specific identifier.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user = users.first()
+        except User.DoesNotExist:
+            raise NotFound('User not found.')
+
+        followers_count = Follow.objects.filter(following=user).count()
+        following_count = Follow.objects.filter(follower=user).count()
+
+        data = {
+            'followers_count': followers_count,
+            'following_count': following_count,
+        }
+        serializer = self.get_serializer(data)
+        return Response(serializer.data)
+
+
+class CurrentUserDailyStreamsView(generics.GenericAPIView):
+    """
+    GET /api/music/me/daily-streams/
+    Returns average daily streams for the currently authenticated user.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = DailyStreamsSerializer
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        data = self._compute_stats(user)
+        serializer = self.get_serializer(data)
+        return Response(serializer.data)
+
+    def _compute_stats(self, user):
+        total_streams = MusicStream.objects.filter(user=user).count()
+        if total_streams == 0:
+            return {
+                'total_streams': 0,
+                'days_active': 0,
+                'average_daily_streams': 0.0,
+            }
+
+        # Get earliest stream
+        earliest = MusicStream.objects.filter(user=user).earliest('started_at')
+        first_date = earliest.started_at.date()
+        today = timezone.now().date()
+        days_active = (today - first_date).days + 1  # inclusive count
+
+        avg = total_streams / days_active if days_active > 0 else 0.0
+        return {
+            'total_streams': total_streams,
+            'days_active': days_active,
+            'average_daily_streams': round(avg, 2),
+        }
+
+
+class UserDailyStreamsByDisplayNameView(generics.GenericAPIView):
+    """
+    GET /api/music/users/daily-streams/?display_name=<name>
+    Returns average daily streams for a user with the given display_name.
+    """
+    permission_classes = [IsAuthenticated]  # or AllowAny if public
+    serializer_class = DailyStreamsSerializer
+
+    def get(self, request, *args, **kwargs):
+        display_name = request.query_params.get('display_name')
+        if not display_name:
+            return Response(
+                {'error': 'display_name query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        users = User.objects.filter(display_name__iexact=display_name)
+        if not users.exists():
+            raise NotFound('No user found with this display name.')
+        if users.count() > 1:
+            return Response(
+                {'error': f'Multiple users found with display name "{display_name}". Please use a more specific identifier.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        user = users.first()
+
+        # Use the same helper as above
+        data = self._compute_stats(user)
+        serializer = self.get_serializer(data)
+        return Response(serializer.data)
+
+    def _compute_stats(self, user):
+        total_streams = MusicStream.objects.filter(user=user).count()
+        if total_streams == 0:
+            return {
+                'total_streams': 0,
+                'days_active': 0,
+                'average_daily_streams': 0.0,
+            }
+
+        earliest = MusicStream.objects.filter(user=user).earliest('started_at')
+        first_date = earliest.started_at.date()
+        today = timezone.now().date()
+        days_active = (today - first_date).days + 1
+
+        avg = total_streams / days_active if days_active > 0 else 0.0
+        return {
+            'total_streams': total_streams,
+            'days_active': days_active,
+            'average_daily_streams': round(avg, 2),
+        }
