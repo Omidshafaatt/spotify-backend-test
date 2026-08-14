@@ -129,9 +129,6 @@ class ArtistRequestSerializer(serializers.ModelSerializer):
         validated_data['user'] = self.context['request'].user
         return super().create(validated_data)
 
-from .models import ArtistRequest
-
-
 class ArtistRequestListSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email')
     user_display_name = serializers.CharField(source='user.display_name')

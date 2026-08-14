@@ -44,7 +44,6 @@ class LoginView(generics.GenericAPIView):
             }
         })
 
-
 class ArtistRequestCreateView(generics.CreateAPIView):
     serializer_class = ArtistRequestSerializer
     permission_classes = [IsAuthenticated]
