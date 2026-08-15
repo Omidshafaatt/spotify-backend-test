@@ -194,7 +194,7 @@ class ArtistRequestUpdateSerializer(serializers.ModelSerializer):
 
 
 class FollowSerializer(serializers.Serializer):
-    display_name = serializers.CharField()
+    display_name = serializers.CharField(write_only=True)
 
     def validate_display_name(self, value):
         try:
@@ -207,19 +207,15 @@ class FollowSerializer(serializers.Serializer):
         follower = self.context['request'].user
         following = data['display_name']
 
-        # Follower must be listener or artist
         if follower.role not in (User.Role.LISTENER, User.Role.ARTIST):
             raise serializers.ValidationError("You must be a listener or artist to follow someone.")
 
-        # Target must be listener or artist
         if following.role not in (User.Role.LISTENER, User.Role.ARTIST):
             raise serializers.ValidationError("You can only follow listeners or artists.")
 
-        # Cannot follow yourself
         if follower == following:
             raise serializers.ValidationError("You cannot follow yourself.")
 
-        # Check if already following (prevents duplicate follow)
         if Follow.objects.filter(follower=follower, following=following).exists():
             raise serializers.ValidationError("You are already following this user.")
 
@@ -229,6 +225,15 @@ class FollowSerializer(serializers.Serializer):
         follower = self.context['request'].user
         following = validated_data['display_name']
         return Follow.objects.create(follower=follower, following=following)
+
+    def to_representation(self, instance):
+        # Customize what is returned after create
+        return {
+            "id": instance.id,
+            "follower": instance.follower.display_name,   # or whatever fields you want
+            "following": instance.following.display_name,
+            # add more fields as needed
+        }
 
 class UnfollowSerializer(serializers.Serializer):
     display_name = serializers.CharField()
@@ -329,10 +334,19 @@ class PublicArtistSerializer(serializers.ModelSerializer):
     singles = serializers.SerializerMethodField()
     albums = serializers.SerializerMethodField()
     user_display_name = serializers.SerializerMethodField() # تبدیل به متد امن
+    profile_image = serializers.SerializerMethodField()
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
 
     class Meta:
         model = Artist
-        fields = ['id', 'user_display_name', 'stage_name', 'bio', 'is_verified', 'singles', 'albums']
+        fields = ['id', 'user_id', 'user_display_name', 'stage_name', 'bio', 'is_verified', 'profile_image', 'singles', 'albums']
+
+
+    def get_profile_image(self, obj):
+        if obj.user and obj.user.profile_image:
+            # return the full URL or just the path; we'll handle URL in frontend
+            return obj.user.profile_image.url
+        return None
 
     def get_user_display_name(self, obj):
         # گرفتن نام کاربری به صورت کاملاً امن که تحت هیچ شرایطی ارور ندهد

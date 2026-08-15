@@ -20,6 +20,11 @@ from django.db import models
 from django.utils import timezone
 from music.models import MusicStream
 
+from rest_framework.generics import RetrieveAPIView
+from django.shortcuts import get_object_or_404
+
+from .models import Artist, Follow
+
 class ListenerRegisterView(generics.CreateAPIView):
     serializer_class = ListenerRegistrationSerializer
     permission_classes = [AllowAny]
@@ -421,3 +426,50 @@ class UpdateArtistProfileView(generics.UpdateAPIView):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
+
+class UserFollowStatsByIDView(generics.GenericAPIView):
+    """
+    GET /api/users/<int:user_id>/follow-stats/
+    Returns follower and following counts for a given user ID.
+    """
+    permission_classes = [IsAuthenticated]  # or AllowAny if you want public
+    serializer_class = UserFollowStatsSerializer
+
+    def get(self, request, user_id, *args, **kwargs):
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            raise NotFound("User not found.")
+
+        followers_count = Follow.objects.filter(following=user).count()
+        following_count = Follow.objects.filter(follower=user).count()
+
+        data = {
+            'followers_count': followers_count,
+            'following_count': following_count,
+        }
+        serializer = self.get_serializer(data)
+        return Response(serializer.data)
+
+class CheckFollowStatusView(APIView):
+    """
+    GET /api/me/follows/<int:user_id>/
+    Returns whether the authenticated user follows the user with given ID.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id):
+        try:
+            target_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        is_following = Follow.objects.filter(
+            follower=request.user,
+            following=target_user
+        ).exists()
+
+        return Response({"is_following": is_following})

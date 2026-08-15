@@ -1,8 +1,8 @@
 # music-streaming-backend/accounts/urls.py
 from django.urls import path
 from .views import (ArtistRequestCreateView, ArtistRequestHistoryView, ArtistRequestListView,
-                    ArtistRequestUpdateView, CurrentUserDailyStreamsView, CurrentUserFollowStatsView, FollowCreateView, ListenerRegisterView, LoginView,
-                    ProfileView, UnfollowView, UpdateArtistProfileView, UpdateListenerProfileView, ArtistProfileView,PublicArtistDetailView, UserDailyStreamsByDisplayNameView, UserFollowStatsByDisplayNameView)
+                    ArtistRequestUpdateView, CheckFollowStatusView, CurrentUserDailyStreamsView, CurrentUserFollowStatsView, FollowCreateView, ListenerRegisterView, LoginView,
+                    ProfileView, UnfollowView, UpdateArtistProfileView, UpdateListenerProfileView, ArtistProfileView,PublicArtistDetailView, UserDailyStreamsByDisplayNameView, UserFollowStatsByDisplayNameView, UserFollowStatsByIDView)
 
 urlpatterns = [
     # register and login endpoints
@@ -33,10 +33,22 @@ urlpatterns = [
     # update profile endpoints for both listener and artist (login required)
     path('profile/update/', UpdateListenerProfileView.as_view(), name='update-profile'),
     path('profile/artist/update/', UpdateArtistProfileView.as_view(), name='update-artist-profile'),
+
+
+    path('users/<int:user_id>/follow-stats/', UserFollowStatsByIDView.as_view(), name='user-follow-stats-by-id'),
+
+    path('me/follows/<int:user_id>/', CheckFollowStatusView.as_view(), name='check-follow-status'),
+
+    path('artists/<int:pk>/', PublicArtistDetailView.as_view(), name='public-artist-detail'),
+
+
+
+    # UNUSED ENDPOINTS (for future use)
+
     
     path('users/follow-stats/', UserFollowStatsByDisplayNameView.as_view(), name='user-follow-stats-by-display-name'),
     path('users/daily-streams/', UserDailyStreamsByDisplayNameView.as_view(), name='user-daily-streams-by-display-name'),
 
-    path('artists/<int:pk>/', PublicArtistDetailView.as_view(), name='public-artist-detail'),
+    
     # ... other URLs
 ]
