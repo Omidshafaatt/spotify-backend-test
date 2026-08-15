@@ -12,13 +12,14 @@ from .serializers import (ArtistStatisticsSerializer, PlaylistSerializer, Playli
                           AddRemoveMusicSerializer, AlbumCreateSerializer, 
                           MusicCreateSerializer, MusicSerializer, 
                           AlbumWithMusicsSerializer,PlaylistDetailSerializer,
-                          SearchSongSerializer, SearchAlbumSerializer, SearchArtistSerializer)
+                          SearchSongSerializer, SearchAlbumSerializer, SearchArtistSerializer,SearchUserSerializer)
 from .permissions import IsListenerOrArtist, IsArtist
 
 from rest_framework.exceptions import PermissionDenied, NotFound
 
 from accounts.models import Artist
 from subscriptions.utils import get_effective_plan
+from accounts.models import User
 
 class PlaylistCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated, IsListenerOrArtist]
@@ -243,23 +244,26 @@ class UnifiedSearchView(APIView):
         albums = albums_qs[:limit]
         album_serializer = SearchAlbumSerializer(albums, many=True)
 
-        # ---- Artists ----
-        artists_qs = Artist.objects.filter(
-            Q(stage_name__icontains=query) |
-            Q(user__display_name__icontains=query)
+      # ---- Artists & Listeners (All Users) ----
+        users_qs = User.objects.filter(
+            Q(display_name__icontains=query) |
+            Q(artist_profile__stage_name__icontains=query),
+            role__in=['listener', 'artist']
+        ).annotate(
+            # شمارش دقیق فالوورها بدون استفاده از distinct روی کل کوئری
+            followers_count=Count('followers', distinct=True)
         )
-        artists_qs = artists_qs.annotate(
-            followers_count=Count('user__followers')
-        )
+        
         if sort == 'listeners':
-            artists_qs = artists_qs.order_by('-followers_count')
+            users_qs = users_qs.order_by('-followers_count')
         else:
-            artists_qs = artists_qs.order_by('-created_at')
-        artists = artists_qs[:limit]
-        artist_serializer = SearchArtistSerializer(artists, many=True)
+            users_qs = users_qs.order_by('-created_at')
+            
+        users = users_qs[:limit]
+        user_serializer = SearchUserSerializer(users, many=True)
 
         return Response({
             'songs': song_serializer.data,
             'albums': album_serializer.data,
-            'artists': artist_serializer.data,
+            'artists': user_serializer.data, 
         })

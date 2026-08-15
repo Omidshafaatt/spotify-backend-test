@@ -3,6 +3,7 @@ from rest_framework import serializers
 from .models import Music, Playlist, Album, MusicArtist, PlaylistMusic, MusicStream
 from subscriptions.utils import get_effective_plan
 from accounts.models import Artist
+from accounts.models import User
 
 class ArtistBasicSerializer(serializers.ModelSerializer):
     class Meta:
@@ -186,3 +187,44 @@ class SearchAlbumSerializer(serializers.ModelSerializer):
 
     def get_song_count(self, obj):
         return obj.musics.count()
+
+class SearchUserSerializer(serializers.ModelSerializer):
+    followers_count = serializers.IntegerField(read_only=True)
+    stage_name = serializers.SerializerMethodField()
+    bio = serializers.SerializerMethodField()
+    is_verified = serializers.SerializerMethodField()
+    profile_image = serializers.SerializerMethodField()
+    artist_id = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'artist_id', 'stage_name', 'bio', 'is_verified', 'profile_image', 'followers_count', 'role']
+
+    def get_artist_id(self, obj):
+        try:
+            return obj.artist_profile.id
+        except Exception:
+            return None
+
+    def get_stage_name(self, obj):
+        try:
+            return obj.artist_profile.stage_name
+        except Exception:
+            return obj.display_name
+
+    def get_bio(self, obj):
+        try:
+            return obj.artist_profile.bio
+        except Exception:
+            return ""
+
+    def get_is_verified(self, obj):
+        try:
+            return obj.artist_profile.is_verified
+        except Exception:
+            return False
+
+    def get_profile_image(self, obj):
+        if obj.profile_image and hasattr(obj.profile_image, 'url'):
+            return obj.profile_image.url
+        return None
