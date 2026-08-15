@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.utils import timezone
 from django.db import models, transaction
 from .models import PaymentTransaction, SubscriptionPrice, UserSubscription
-from .serializers import PaymentCreateSerializer, SubscriptionPlanSerializer, CurrentUserSubscriptionSerializer, ActiveSubscriptionPriceSerializer
+from .serializers import PaymentCreateSerializer, SubscriptionPlanDetailSerializer, SubscriptionPlanSerializer, CurrentUserSubscriptionSerializer, ActiveSubscriptionPriceSerializer, SubscriptionPriceUpdateSerializer
 from rest_framework import generics, status
 from .utils import get_effective_plan
 from rest_framework.views import APIView, settings
@@ -462,3 +462,128 @@ class ZarinPalCallbackView(APIView):
             f"?status=success"
             f"&payment_id={payment.id}"
         )
+
+
+# subscriptions/views.py
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.db.models import Count, Sum
+from django.utils import timezone
+from django.db import models
+from accounts.models import User
+from .models import PaymentTransaction, UserSubscription, SubscriptionPlan
+from .serializers import DashboardStatsSerializer
+from accounts.permissions import IsAdmin  # or define your own
+
+
+class AdminDashboardStatsView(APIView):
+    """
+    GET /api/admin/dashboard/stats/
+    Returns:
+      - current_month_revenue: total amount from successful payments in the current month
+      - active_users: number of users with an active subscription (status=ACTIVE and not expired)
+      - subscription_distribution: counts per plan (Base, Silver, Gold) for all users
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]  # only admin/support
+
+    def get(self, request):
+        now = timezone.now()
+        # ---- Current month revenue ----
+        # Sum of amount from successful transactions in the current month (by paid_at)
+        current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        revenue = PaymentTransaction.objects.filter(
+            status=PaymentTransaction.Status.SUCCESS,
+            paid_at__gte=current_month_start
+        ).aggregate(total=Sum('amount'))['total'] or 0
+
+        # ---- Active users ----
+        # Users with at least one active subscription (status=ACTIVE and end_date >= today or null)
+        active_users = UserSubscription.objects.filter(
+            status=UserSubscription.Status.ACTIVE
+        ).filter(
+            models.Q(end_date__isnull=True) | models.Q(end_date__gte=now)
+        ).values('user').distinct().count()
+
+        # ---- Subscription distribution ----
+        total_users = User.objects.count()
+
+        # Get users with active paid plans (Silver, Gold)
+        # We need to get the latest active subscription per user, then group by plan name
+        # For simplicity, we'll count users with any active subscription to each plan.
+        # But if a user has multiple, we count them once per plan (could skew).
+        # Better: count distinct users per plan based on their current active subscription.
+        # We'll use a subquery or annotate.
+        # Approach: get all active subscriptions, then for each user, pick the one with latest start_date? We'll just count distinct users per plan.
+        # But a user could have both Silver and Gold? Not likely, but we'll use distinct.
+        plan_counts = {}
+        plans = SubscriptionPlan.objects.all()
+        for plan in plans:
+            # Count distinct users with at least one active subscription to this plan
+            count = UserSubscription.objects.filter(
+                subscription_price__plan=plan,
+                status=UserSubscription.Status.ACTIVE
+            ).filter(
+                models.Q(end_date__isnull=True) | models.Q(end_date__gte=now)
+            ).values('user').distinct().count()
+            plan_counts[plan.name.lower()] = count
+
+        # Base = total_users - sum of paid plan counts (assuming Base is the default for those without any subscription)
+        paid_count = sum(plan_counts.values())
+        base_count = total_users - paid_count
+        distribution = {
+            'base': base_count,
+            **{name.lower(): count for name, count in plan_counts.items()}
+        }
+
+        # Ensure all plans are present; if some plan is missing, set to 0
+        # The frontend expects keys: base, silver, gold – but we can send all plan names dynamically.
+        # The frontend in renderSystemTab expects static keys. We'll keep that expectation and only return those.
+        # But we can also send all plans; frontend can adapt.
+
+        data = {
+            'current_month_revenue': revenue,
+            'active_users': active_users,
+            'subscription_distribution': {
+                'base': distribution.get('base', 0),
+                'silver': distribution.get('silver', 0),
+                'gold': distribution.get('gold', 0),
+            }
+        }
+        serializer = DashboardStatsSerializer(data)
+        return Response(serializer.data)
+
+
+class AdminPlansListView(APIView):
+    """
+    GET /api/admin/plans/
+    Returns all active subscription plans with their prices.
+    Admin only.
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        plans = SubscriptionPlan.objects.filter(is_active=True)
+        serializer = SubscriptionPlanDetailSerializer(plans, many=True)
+        return Response(serializer.data)
+
+
+class AdminUpdatePriceView(APIView):
+    """
+    PATCH /api/admin/subscription-prices/<int:price_id>/
+    Update price of a specific SubscriptionPrice.
+    Admin only.
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def patch(self, request, price_id):
+        try:
+            price_obj = SubscriptionPrice.objects.get(id=price_id)
+        except SubscriptionPrice.DoesNotExist:
+            return Response({'detail': 'Price not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = SubscriptionPriceUpdateSerializer(price_obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

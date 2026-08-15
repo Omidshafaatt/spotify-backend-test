@@ -64,3 +64,25 @@ class PaymentCreateSerializer(serializers.Serializer):
     @property
     def price(self):
         return getattr(self, "_price", None)
+
+
+class DashboardStatsSerializer(serializers.Serializer):
+    current_month_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+    active_users = serializers.IntegerField()
+    subscription_distribution = serializers.DictField(
+        child=serializers.IntegerField()
+    )
+
+class SubscriptionPriceUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubscriptionPrice
+        fields = ['id', 'duration_months', 'price', 'is_active']  # add duration_months read-only
+        read_only_fields = ['id', 'duration_months']
+
+
+class SubscriptionPlanDetailSerializer(serializers.ModelSerializer):
+    prices = SubscriptionPriceUpdateSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = SubscriptionPlan
+        fields = ['id', 'name', 'prices']
