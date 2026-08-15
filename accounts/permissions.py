@@ -4,7 +4,7 @@ from .models import User
 
 class IsAdmin(BasePermission):
     """
-    Allows access only to users with 'admin' or 'support' role.
+    Allows access only to users with 'admin' role.
     """
     def has_permission(self, request, view):
         return (request.user.is_authenticated and
@@ -25,7 +25,6 @@ class IsListenerOrArtist(BasePermission):
     def has_permission(self, request, view):
         return (request.user.is_authenticated and
                 request.user.role in (User.Role.LISTENER, User.Role.ARTIST))
-
 
 class IsTicketOwnerOrAdminSupport(BasePermission):
     """

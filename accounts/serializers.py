@@ -2,6 +2,7 @@
 import secrets
 import string
 from datetime import date
+from typing import Any, Dict, List, Optional
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from .models import ArtistRequest, Follow, User, Artist
@@ -140,12 +141,6 @@ class ArtistRequestListSerializer(serializers.ModelSerializer):
             'stage_name', 'portfolio', 'status', 'reason', 'created_at'
         ]
 
-class ArtistRequestHistorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ArtistRequest
-        fields = ['id', 'stage_name', 'portfolio', 'status', 'reason', 'created_at']
-
-
 class ArtistRequestUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ArtistRequest
@@ -191,7 +186,6 @@ class ArtistRequestUpdateSerializer(serializers.ModelSerializer):
             user.save(update_fields=['role'])
 
         return instance
-
 
 class FollowSerializer(serializers.Serializer):
     display_name = serializers.CharField(write_only=True)
@@ -342,13 +336,13 @@ class PublicArtistSerializer(serializers.ModelSerializer):
         fields = ['id', 'user_id', 'user_display_name', 'stage_name', 'bio', 'is_verified', 'profile_image', 'singles', 'albums']
 
 
-    def get_profile_image(self, obj):
+    def get_profile_image(self, obj) -> Optional[str]:
         if obj.user and obj.user.profile_image:
             # return the full URL or just the path; we'll handle URL in frontend
             return obj.user.profile_image.url
         return None
 
-    def get_user_display_name(self, obj):
+    def get_user_display_name(self, obj) -> str:
         # گرفتن نام کاربری به صورت کاملاً امن که تحت هیچ شرایطی ارور ندهد
         try:
             if hasattr(obj, 'user') and obj.user:
@@ -357,12 +351,12 @@ class PublicArtistSerializer(serializers.ModelSerializer):
         except Exception:
             return "Unknown"
 
-    def get_singles(self, obj):
+    def get_singles(self, obj) -> List[Dict[str, Any]]:
         singles = Music.objects.filter(artists=obj, album__isnull=True).order_by('-release_date')
         # پاس دادن کانتکست برای کار کردن صحیح لایک‌ها
         return MusicSerializer(singles, many=True, context=self.context).data
 
-    def get_albums(self, obj):
+    def get_albums(self, obj) -> List[Dict[str, Any]]:
         albums = Album.objects.filter(musics__artists=obj).distinct().order_by('-release_date')
         return AlbumWithMusicsSerializer(albums, many=True, context=self.context).data
 
@@ -370,7 +364,6 @@ class UserFollowStatsSerializer(serializers.Serializer):
     """Serializer for follower/following counts."""
     followers_count = serializers.IntegerField()
     following_count = serializers.IntegerField()
-
 
 class DailyStreamsSerializer(serializers.Serializer):
     total_streams = serializers.IntegerField()
@@ -418,3 +411,11 @@ class UpdateArtistProfileSerializer(serializers.ModelSerializer):
             artist.save()
 
         return user
+
+class FollowStatusSerializer(serializers.Serializer):
+    is_following = serializers.BooleanField()
+# UNUSED SERIALIZERS (for future use)
+class ArtistRequestHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ArtistRequest
+        fields = ['id', 'stage_name', 'portfolio', 'status', 'reason', 'created_at']

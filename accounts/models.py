@@ -20,7 +20,6 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('role', self.model.Role.ADMIN)
         return self.create_user(email, username, display_name, password, **extra_fields)
 
-
 class User(AbstractUser):
     class Role(models.TextChoices):
         LISTENER = "listener", "Listener"
@@ -70,7 +69,6 @@ class Artist(models.Model):
     def __str__(self):
         return self.stage_name
 
-
 class ArtistRequest(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -107,7 +105,6 @@ class ArtistRequest(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.stage_name} - {self.status}"
-
 
 class Follow(models.Model):
     follower = models.ForeignKey(
