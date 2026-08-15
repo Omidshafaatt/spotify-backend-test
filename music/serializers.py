@@ -120,3 +120,69 @@ class PlaylistDetailSerializer(serializers.ModelSerializer):
 class ArtistStatisticsSerializer(serializers.Serializer):
     total_streams = serializers.IntegerField()
     unique_listeners = serializers.IntegerField()
+
+
+class SearchArtistSerializer(serializers.ModelSerializer):
+    followers_count = serializers.IntegerField(read_only=True)
+    profile_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Artist
+        fields = ['id', 'stage_name', 'bio', 'is_verified', 'profile_image', 'followers_count']
+
+    def get_profile_image(self, obj):
+        if obj.user and obj.user.profile_image:
+            return obj.user.profile_image.url
+        return None
+
+
+class SearchSongSerializer(serializers.ModelSerializer):
+    artist_name = serializers.SerializerMethodField()
+    artist_id = serializers.SerializerMethodField()
+    streams_count = serializers.IntegerField(read_only=True)
+    likes_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Music
+        fields = [
+            'id', 'title', 'cover', 'audio_file', 'lyrics', 'release_date',
+            'duration', 'streams_count', 'likes_count', 'is_liked',
+            'artist_name', 'artist_id'
+        ]
+
+    def get_artist_name(self, obj):
+        first_artist = obj.artists.first()
+        return first_artist.stage_name if first_artist else "Unknown Artist"
+
+    def get_artist_id(self, obj):
+        first_artist = obj.artists.first()
+        return first_artist.id if first_artist else None
+
+    def get_likes_count(self, obj):
+        return obj.likes.count()
+
+    def get_is_liked(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(id=request.user.id).exists()
+        return False
+
+
+class SearchAlbumSerializer(serializers.ModelSerializer):
+    artist_name = serializers.SerializerMethodField()
+    artist_id = serializers.SerializerMethodField()
+    song_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Album
+        fields = ['id', 'title', 'cover', 'release_date', 'artist_name', 'artist_id', 'song_count']
+
+    def get_artist_name(self, obj):
+        return obj.artist.stage_name if obj.artist else "Various Artists"
+
+    def get_artist_id(self, obj):
+        return obj.artist.id if obj.artist else None
+
+    def get_song_count(self, obj):
+        return obj.musics.count()

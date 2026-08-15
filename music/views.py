@@ -5,13 +5,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
-from django.db.models import Max
+from django.db.models import Max, Q, Count
 
 from .models import Playlist, PlaylistMusic, Album, Music, MusicStream
 from .serializers import (ArtistStatisticsSerializer, PlaylistSerializer, PlaylistCreateSerializer, 
                           AddRemoveMusicSerializer, AlbumCreateSerializer, 
                           MusicCreateSerializer, MusicSerializer, 
-                          AlbumWithMusicsSerializer,PlaylistDetailSerializer)
+                          AlbumWithMusicsSerializer,PlaylistDetailSerializer,
+                          SearchSongSerializer, SearchAlbumSerializer, SearchArtistSerializer)
 from .permissions import IsListenerOrArtist, IsArtist
 
 from rest_framework.exceptions import PermissionDenied, NotFound
@@ -200,3 +201,65 @@ class ArtistStatisticsView(APIView):
         }
         serializer = ArtistStatisticsSerializer(data)
         return Response(serializer.data)
+
+
+
+class UnifiedSearchView(APIView):
+    """
+    GET /api/search/
+    Query params:
+      - q (string) – search query
+      - sort (listeners|date) – default 'listeners'
+      - limit (int) – default 10
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        query = request.query_params.get('q', '').strip()
+        sort = request.query_params.get('sort', 'listeners')
+        limit = int(request.query_params.get('limit', 10))
+
+        if not query:
+            return Response({'songs': [], 'albums': [], 'artists': []})
+
+        # ---- Songs ----
+        songs_qs = Music.objects.filter(Q(title__icontains=query))
+        songs_qs = songs_qs.annotate(streams_count=Count('streams'))
+        if sort == 'listeners':
+            songs_qs = songs_qs.order_by('-streams_count')
+        else:  # date
+            songs_qs = songs_qs.order_by('-release_date')
+        songs = songs_qs[:limit]
+        song_serializer = SearchSongSerializer(songs, many=True, context={'request': request})
+
+        # ---- Albums ----
+        albums_qs = Album.objects.filter(Q(title__icontains=query))
+        if sort == 'listeners':
+            albums_qs = albums_qs.annotate(
+                total_streams=Count('musics__streams')
+            ).order_by('-total_streams')
+        else:
+            albums_qs = albums_qs.order_by('-release_date')
+        albums = albums_qs[:limit]
+        album_serializer = SearchAlbumSerializer(albums, many=True)
+
+        # ---- Artists ----
+        artists_qs = Artist.objects.filter(
+            Q(stage_name__icontains=query) |
+            Q(user__display_name__icontains=query)
+        )
+        artists_qs = artists_qs.annotate(
+            followers_count=Count('user__followers')
+        )
+        if sort == 'listeners':
+            artists_qs = artists_qs.order_by('-followers_count')
+        else:
+            artists_qs = artists_qs.order_by('-created_at')
+        artists = artists_qs[:limit]
+        artist_serializer = SearchArtistSerializer(artists, many=True)
+
+        return Response({
+            'songs': song_serializer.data,
+            'albums': album_serializer.data,
+            'artists': artist_serializer.data,
+        })

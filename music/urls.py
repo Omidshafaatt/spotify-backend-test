@@ -6,7 +6,8 @@ from .views import (
     AlbumCreateView, MusicCreateView, MusicListView, AlbumListView,
     AlbumDetailView, MyAlbumsListView, ToggleLikeView, RecordStreamView,
     MyPlaylistsListView, 
-    PlaylistDetailView
+    PlaylistDetailView,
+    UnifiedSearchView
 )
 
 urlpatterns = [
@@ -34,6 +35,8 @@ urlpatterns = [
     
     path('playlists/<int:pk>/add-music/', AddMusicToPlaylistView.as_view(), name='playlist-add-music'),
     path('playlists/<int:pk>/remove-music/', RemoveMusicFromPlaylistView.as_view(), name='playlist-remove-music'),
+
+    path('search/', UnifiedSearchView.as_view(), name='unified-search'),
 
     path('artists/<int:artist_id>/statistics/', ArtistStatisticsView.as_view(), name='artist-statistics'),
 ]
