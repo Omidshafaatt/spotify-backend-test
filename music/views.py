@@ -8,11 +8,16 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Max
 
 from .models import Playlist, PlaylistMusic, Album, Music, MusicStream
-from .serializers import (PlaylistSerializer, PlaylistCreateSerializer, 
+from .serializers import (ArtistStatisticsSerializer, PlaylistSerializer, PlaylistCreateSerializer, 
                           AddRemoveMusicSerializer, AlbumCreateSerializer, 
                           MusicCreateSerializer, MusicSerializer, 
                           AlbumWithMusicsSerializer,PlaylistDetailSerializer)
 from .permissions import IsListenerOrArtist, IsArtist
+
+from rest_framework.exceptions import PermissionDenied, NotFound
+
+from accounts.models import Artist
+from subscriptions.utils import get_effective_plan
 
 class PlaylistCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated, IsListenerOrArtist]
@@ -156,3 +161,42 @@ class PlaylistDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         # کاربر فقط بتونه پلی‌لیست‌های خودش رو ببینه
         return Playlist.objects.filter(owner=self.request.user)
+
+class ArtistStatisticsView(APIView):
+    """
+    GET /api/artists/<int:artist_id>/statistics/
+    Returns total streams and unique listeners for a given artist.
+    Only accessible if the logged-in user's subscription plan allows viewing statistics.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, artist_id):
+        # 1. Check subscription permission
+        plan = get_effective_plan(request.user)
+        if plan is None or not plan.can_view_statistics:
+            raise PermissionDenied(
+                "Your subscription plan does not allow viewing artist statistics."
+            )
+
+        # 2. Retrieve the artist
+        try:
+            artist = Artist.objects.get(id=artist_id)
+        except Artist.DoesNotExist:
+            raise NotFound("Artist not found.")
+
+        # 3. Compute streams
+        # All MusicStream records for musics that have this artist as a collaborator
+        streams_qs = MusicStream.objects.filter(
+            music__music_artists__artist_id=artist_id
+        )
+
+        total_streams = streams_qs.count()
+        unique_listeners = streams_qs.values('user').distinct().count()
+
+        # 4. Serialize and respond
+        data = {
+            'total_streams': total_streams,
+            'unique_listeners': unique_listeners,
+        }
+        serializer = ArtistStatisticsSerializer(data)
+        return Response(serializer.data)

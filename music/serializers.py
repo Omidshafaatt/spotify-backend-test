@@ -116,3 +116,7 @@ class PlaylistDetailSerializer(serializers.ModelSerializer):
         model = Playlist
         # فیلد cover اینجا جا مانده بود که اضافه شد!
         fields = ['id', 'name', 'cover', 'created_at', 'updated_at', 'musics']
+
+class ArtistStatisticsSerializer(serializers.Serializer):
+    total_streams = serializers.IntegerField()
+    unique_listeners = serializers.IntegerField()
