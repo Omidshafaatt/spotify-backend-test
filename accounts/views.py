@@ -468,3 +468,11 @@ class UserDailyStreamsByDisplayNameView(generics.GenericAPIView):
             'average_daily_streams': round(avg, 2),
         }
 
+class PublicUserDetailView(generics.RetrieveAPIView):
+    """
+    GET accounts/users/<int:pk>/
+    Returns basic public profile of any user (listener or artist).
+    """
+    queryset = User.objects.all()
+    serializer_class = UserProfileSerializer # از همون سریالایزری که برای خودمون ساختیم استفاده می‌کنیم
+    permission_classes = [AllowAny]

@@ -4,7 +4,7 @@ from .views import (ArtistRequestCreateView, ArtistRequestHistoryView, ArtistReq
                     ArtistRequestUpdateView, CheckFollowStatusView, CurrentUserDailyStreamsView, CurrentUserFollowStatsView, FollowCreateView,
                     ListenerRegisterView, LoginView, ProfileView, UnfollowView, UpdateArtistProfileView,
                     UpdateListenerProfileView, ArtistProfileView,PublicArtistDetailView,
-                    UserDailyStreamsByDisplayNameView, UserFollowStatsByDisplayNameView, UserFollowStatsByIDView)
+                    UserDailyStreamsByDisplayNameView, UserFollowStatsByDisplayNameView, UserFollowStatsByIDView,PublicUserDetailView)
 
 urlpatterns = [
     # register and login endpoints
@@ -43,6 +43,8 @@ urlpatterns = [
 
     # check if the current user is following another user by their ID (login required)
     path('me/follows/<int:user_id>/', CheckFollowStatusView.as_view(), name='check-follow-status'),
+    # public user profile endpoint (no login required)
+    path('users/<int:pk>/', PublicUserDetailView.as_view(), name='public-user-detail'),
 
     
 
