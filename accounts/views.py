@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from .serializers import (ArtistRequestHistorySerializer, ArtistRequestListSerializer, ArtistRequestUpdateSerializer, DailyStreamsSerializer,
                            FollowSerializer, ListenerRegistrationSerializer, LoginSerializer,
                            ArtistRequestSerializer, UpdateArtistProfileSerializer, UpdateListenerProfileSerializer, UserFollowStatsSerializer, UserProfileSerializer, UnfollowSerializer,
-                           ArtistProfileSerializer, PublicArtistSerializer, FollowStatusSerializer)
+                           ArtistProfileSerializer, PublicArtistSerializer, FollowStatusSerializer,UserSettingsSerializer)
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -23,7 +23,7 @@ from music.models import MusicStream
 from rest_framework.generics import RetrieveAPIView
 from django.shortcuts import get_object_or_404
 
-from .models import Artist, Follow
+from .models import Artist, Follow,UserSettings
 
 class ListenerRegisterView(generics.CreateAPIView):
     serializer_class = ListenerRegistrationSerializer
@@ -476,3 +476,11 @@ class PublicUserDetailView(generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = UserProfileSerializer # از همون سریالایزری که برای خودمون ساختیم استفاده می‌کنیم
     permission_classes = [AllowAny]
+
+class UserSettingsView(generics.RetrieveUpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSettingsSerializer
+
+    def get_object(self):
+        settings, created = UserSettings.objects.get_or_create(user=self.request.user)
+        return settings

@@ -4,7 +4,7 @@ from .views import (ArtistRequestCreateView, ArtistRequestHistoryView, ArtistReq
                     ArtistRequestUpdateView, CheckFollowStatusView, CurrentUserDailyStreamsView, CurrentUserFollowStatsView, FollowCreateView,
                     ListenerRegisterView, LoginView, ProfileView, UnfollowView, UpdateArtistProfileView,
                     UpdateListenerProfileView, ArtistProfileView,PublicArtistDetailView,
-                    UserDailyStreamsByDisplayNameView, UserFollowStatsByDisplayNameView, UserFollowStatsByIDView,PublicUserDetailView)
+                    UserDailyStreamsByDisplayNameView, UserFollowStatsByDisplayNameView, UserFollowStatsByIDView,PublicUserDetailView,UserSettingsView)
 
 urlpatterns = [
     # register and login endpoints
@@ -46,7 +46,7 @@ urlpatterns = [
     # public user profile endpoint (no login required)
     path('users/<int:pk>/', PublicUserDetailView.as_view(), name='public-user-detail'),
 
-    
+    path('settings/', UserSettingsView.as_view(), name='user-settings'),
 
 
 

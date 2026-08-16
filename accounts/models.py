@@ -137,3 +137,12 @@ class Follow(models.Model):
 
     def __str__(self):
         return f"{self.follower} follows {self.following}"
+
+class UserSettings(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='settings')
+    language = models.CharField(max_length=10, default='en')
+    notifications = models.CharField(max_length=20, default='mentions')
+    volume = models.FloatField(default=1.0)
+
+    def __str__(self):
+        return f"Settings for {self.user.email}"
