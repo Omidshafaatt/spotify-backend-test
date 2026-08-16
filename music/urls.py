@@ -8,7 +8,7 @@ from .views import (
     MyPlaylistsListView, 
     PlaylistDetailView,
     UnifiedSearchView,MyMusicsListView,
-    MusicDetailUpdateDeleteView,AlbumDetailUpdateDeleteView
+    MusicDetailUpdateDeleteView,AlbumDetailUpdateDeleteView,ArtistFinancialAuditView, SettleArtistPaymentView
 )
 
 urlpatterns = [
@@ -45,4 +45,6 @@ urlpatterns = [
     path('musics/<int:pk>/edit/', MusicDetailUpdateDeleteView.as_view(), name='music-edit'),
     path('albums/<int:pk>/delete/', AlbumDetailUpdateDeleteView.as_view(), name='album-delete'),
     path('albums/<int:pk>/edit/', AlbumDetailUpdateDeleteView.as_view(), name='album-edit'),
+    path('admin/financial-audit/', ArtistFinancialAuditView.as_view(), name='financial-audit'),
+    path('admin/settle-payment/<int:artist_id>/', SettleArtistPaymentView.as_view(), name='settle-payment'),
 ]

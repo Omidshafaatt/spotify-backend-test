@@ -230,3 +230,49 @@ class MusicStream(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.music.title}"
+
+class ArtistMonthlySettlement(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        SETTLED = "SETTLED", "Settled"
+
+    artist = models.ForeignKey(
+        Artist,
+        on_delete=models.CASCADE,
+        related_name="settlements",
+    )
+    
+    # برای مشخص کردن اینکه این تسویه برای کدوم ماه و ساله (مثلا 2026-08-01)
+    # معمولا روزش رو 1 در نظر می‌گیریم تا نماینده کل اون ماه باشه
+    month = models.DateField() 
+    
+    total_streams = models.PositiveIntegerField(default=0)
+    unique_listeners = models.PositiveIntegerField(default=0)
+    
+    # مبلغ پاداش (با فرض اینکه ممکنه اعشاری باشه)
+    reward_amount = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        default=0.00
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        # هر آرتیست تو هر ماه فقط یک رکورد تسویه حساب می‌تونه داشته باشه
+        constraints = [
+            models.UniqueConstraint(
+                fields=["artist", "month"],
+                name="unique_artist_settlement_per_month",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.artist.stage_name} - {self.month.strftime('%Y-%m')} - {self.status}"

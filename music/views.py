@@ -7,7 +7,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
 from django.db.models import Max, Q, Count
 
-from .models import Playlist, PlaylistMusic, Album, Music, MusicStream
+from .models import Playlist, PlaylistMusic, Album, Music, MusicStream,ArtistMonthlySettlement
 from .serializers import (ArtistStatisticsSerializer, PlaylistSerializer, PlaylistCreateSerializer, 
                           AddRemoveMusicSerializer, AlbumCreateSerializer, 
                           MusicCreateSerializer, MusicSerializer, 
@@ -20,6 +20,7 @@ from rest_framework.exceptions import PermissionDenied, NotFound
 from accounts.models import Artist
 from subscriptions.utils import get_effective_plan
 from accounts.models import User
+from django.utils import timezone
 
 class PlaylistCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated, IsListenerOrArtist]
@@ -297,3 +298,91 @@ class AlbumDetailUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         # هنرمند فقط مجاز به حذف آلبوم‌های خودش است
         return Album.objects.filter(artist=self.request.user.artist_profile)
+
+# 🌟 کلاس جدید ۳: محاسبه و نمایش وضعیت مالی هنرمندان در ماه جاری
+class ArtistFinancialAuditView(APIView):
+    permission_classes = [IsAuthenticated] # بعدا میتونی IsAdminOrSupport رو هم اضافه کنی
+
+    def get(self, request):
+        # بررسی اینکه فقط ادمین یا پشتیبان دسترسی داشته باشن (البته فرانت هم هندل میکنه)
+        if request.user.role not in [User.Role.ADMIN, User.Role.SUPPORT]:
+             raise PermissionDenied("Only admins can access this audit.")
+
+        # مشخص کردن اولِ ماه جاری
+        now = timezone.now()
+        first_day_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        # گرفتن تمام هنرمندان
+        artists = Artist.objects.all()
+        results = []
+
+        for artist in artists:
+            # پیدا کردن استریم‌های موفقِ این هنرمند تو ماهِ جاری (مثلا استریم‌هایی که بیش از 30 ثانیه بوده)
+            # فرض میکنیم اگر `ended_at` پر باشه یعنی حداقل گوش داده شده
+            streams_qs = MusicStream.objects.filter(
+                music__artists=artist, 
+                started_at__gte=first_day_of_month
+            )
+
+            total_streams = streams_qs.count()
+            unique_listeners = streams_qs.values('user').distinct().count()
+
+            # فرمول پاداش: هر استریم = 0.003 دلار
+            reward = total_streams * 0.003
+
+            # سعی میکنیم رکورد تسویه حساب این ماه این هنرمند رو پیدا کنیم یا بسازیم
+            settlement, created = ArtistMonthlySettlement.objects.get_or_create(
+                artist=artist,
+                month=first_day_of_month.date(),
+                defaults={
+                    'total_streams': total_streams,
+                    'unique_listeners': unique_listeners,
+                    'reward_amount': reward,
+                    'status': ArtistMonthlySettlement.Status.PENDING
+                }
+            )
+
+            # اگر از قبل ساخته شده ولی استریم‌ها تو همین ماه بیشتر شده، باید آپدیتش کنیم
+            if not created and settlement.status == ArtistMonthlySettlement.Status.PENDING:
+                settlement.total_streams = total_streams
+                settlement.unique_listeners = unique_listeners
+                settlement.reward_amount = reward
+                settlement.save()
+
+            # آماده‌سازی دیتا برای فرستادن به فرانت‌اند
+            results.append({
+                'artistId': str(artist.id), # به استرینگ تبدیل میکنیم چون فرانت اند art_1 و... میخواست
+                'name': artist.stage_name,
+                'listeners': settlement.unique_listeners,
+                'streams': settlement.total_streams,
+                'reward': float(settlement.reward_amount),
+                'status': settlement.status
+            })
+
+        return Response(results, status=status.HTTP_200_OK)
+
+# 🌟 کلاس جدید ۴: تغییر وضعیت تسویه حساب به Settled
+class SettleArtistPaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, artist_id):
+        if request.user.role not in [User.Role.ADMIN, User.Role.SUPPORT]:
+             raise PermissionDenied("Only admins can settle payments.")
+
+        now = timezone.now()
+        first_day_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        try:
+            settlement = ArtistMonthlySettlement.objects.get(
+                artist_id=artist_id,
+                month=first_day_of_month.date()
+            )
+            
+            settlement.status = ArtistMonthlySettlement.Status.SETTLED
+            settlement.save()
+            
+            # اینجا می‌تونی یه نوتیفیکیشن هم برای آرتیست بفرستی که پولش واریز شد!
+            
+            return Response({"detail": "Payment settled successfully."}, status=status.HTTP_200_OK)
+        except ArtistMonthlySettlement.DoesNotExist:
+             return Response({"detail": "No pending settlement found for this month."}, status=status.HTTP_404_NOT_FOUND)
