@@ -111,6 +111,26 @@ class MusicArtist(models.Model):
     def __str__(self):
         return f"{self.music.title} - {self.artist.stage_name}"
 
+    # 🌟 جادوی نوتیفیکیشن اینجا اضافه شد!
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+
+        if is_new:
+            # وارد کردن مدل‌ها اینجا تا به خطای چرخه (Circular Import) نخوریم
+            from accounts.models import Notification, User
+            
+            # پیدا کردن تمام کاربرانی که این آرتیست رو فالو کرده‌اند
+            followers = User.objects.filter(following__following=self.artist.user)
+            
+            for follower in followers:
+                Notification.objects.create(
+                    user=follower,
+                    title="New Release!",
+                    message=f"{self.artist.stage_name} just released a new track: {self.music.title}",
+                    type=Notification.Type.INFO,
+                    link=f"/albums/{self.music.album.id}" if self.music.album else "#"
+                )
 
 class Playlist(models.Model):
     owner = models.ForeignKey(

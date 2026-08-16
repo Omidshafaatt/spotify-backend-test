@@ -36,7 +36,26 @@ class Ticket(models.Model):
 
     def __str__(self):
         return f"#{self.id} - {self.subject}"
+    
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
 
+        if is_new:
+            # وارد کردن مدل‌ها برای جلوگیری از Circular Import
+            from accounts.models import Notification, User
+            
+            # پیدا کردن مدیران و پشتیبان‌ها
+            staff_users = User.objects.filter(role__in=[User.Role.ADMIN, User.Role.SUPPORT])
+            
+            for staff in staff_users:
+                Notification.objects.create(
+                    user=staff,
+                    title="New Support Ticket",
+                    message=f"User {self.user.email} submitted a new ticket: #{self.id} - {self.subject}",
+                    type=Notification.Type.WARNING,
+                    link="/dashboard" # یا هر لینکی که داشبورد پشتیبان‌هاست
+                )
 
 class TicketMessage(models.Model):
     ticket = models.ForeignKey(

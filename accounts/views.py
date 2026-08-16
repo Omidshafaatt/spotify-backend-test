@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from .serializers import (ArtistRequestHistorySerializer, ArtistRequestListSerializer, ArtistRequestUpdateSerializer, DailyStreamsSerializer,
                            FollowSerializer, ListenerRegistrationSerializer, LoginSerializer,
                            ArtistRequestSerializer, UpdateArtistProfileSerializer, UpdateListenerProfileSerializer, UserFollowStatsSerializer, UserProfileSerializer, UnfollowSerializer,
-                           ArtistProfileSerializer, PublicArtistSerializer, FollowStatusSerializer,UserSettingsSerializer)
+                           ArtistProfileSerializer, PublicArtistSerializer, FollowStatusSerializer,UserSettingsSerializer,NotificationSerializer)
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -484,3 +484,31 @@ class UserSettingsView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         settings, created = UserSettings.objects.get_or_create(user=self.request.user)
         return settings
+
+class NotificationListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = NotificationSerializer
+
+    def get_queryset(self):
+        return self.request.user.notifications.all().order_by('-created_at')
+
+class NotificationUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = NotificationSerializer
+
+    def get_queryset(self):
+        return self.request.user.notifications.all()
+
+    # متد اختصاصی برای مارک کردن به عنوان خوانده شده
+    def patch(self, request, *args, **kwargs):
+        notif = self.get_object()
+        notif.is_read = True
+        notif.save()
+        return Response({"detail": "Marked as read"})
+
+class NotificationMarkAllReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        request.user.notifications.filter(is_read=False).update(is_read=True)
+        return Response({"detail": "All notifications marked as read"})

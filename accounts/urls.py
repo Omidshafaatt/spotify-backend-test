@@ -4,7 +4,7 @@ from .views import (ArtistRequestCreateView, ArtistRequestHistoryView, ArtistReq
                     ArtistRequestUpdateView, CheckFollowStatusView, CurrentUserDailyStreamsView, CurrentUserFollowStatsView, FollowCreateView,
                     ListenerRegisterView, LoginView, ProfileView, UnfollowView, UpdateArtistProfileView,
                     UpdateListenerProfileView, ArtistProfileView,PublicArtistDetailView,
-                    UserDailyStreamsByDisplayNameView, UserFollowStatsByDisplayNameView, UserFollowStatsByIDView,PublicUserDetailView,UserSettingsView)
+                    UserDailyStreamsByDisplayNameView, UserFollowStatsByDisplayNameView, UserFollowStatsByIDView,PublicUserDetailView,UserSettingsView,NotificationListView, NotificationUpdateDeleteView, NotificationMarkAllReadView)
 
 urlpatterns = [
     # register and login endpoints
@@ -47,6 +47,9 @@ urlpatterns = [
     path('users/<int:pk>/', PublicUserDetailView.as_view(), name='public-user-detail'),
 
     path('settings/', UserSettingsView.as_view(), name='user-settings'),
+    path('notifications/', NotificationListView.as_view(), name='notifications-list'),
+    path('notifications/<int:pk>/', NotificationUpdateDeleteView.as_view(), name='notification-detail'),
+    path('notifications/read-all/', NotificationMarkAllReadView.as_view(), name='notifications-read-all'),
 
 
 

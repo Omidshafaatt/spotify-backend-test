@@ -5,7 +5,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import ArtistRequest, Follow, User, Artist,UserSettings
+from .models import ArtistRequest, Follow, User, Artist,UserSettings,Notification
 from django.contrib.auth import authenticate
 from music.models import Album, Music, MusicStream
 from music.serializers import AlbumWithMusicsSerializer, MusicSerializer
@@ -424,3 +424,8 @@ class UserSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserSettings
         fields = ['language', 'notifications', 'volume']
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'title', 'message', 'type', 'link', 'is_read', 'created_at']
