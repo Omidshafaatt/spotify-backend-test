@@ -56,10 +56,10 @@ gold = SubscriptionPlan.objects.create(
 
 # Add prices for Silver
 silver_prices = [
-    (1, 10.00),
-    (3, 25.00),
-    (6, 45.00),
-    (12, 80.00),
+    (1, 100000.00),
+    (3, 250000.00),
+    (6, 450000.00),
+    (12, 800000.00),
 ]
 for months, price in silver_prices:
     SubscriptionPrice.objects.create(
@@ -71,10 +71,10 @@ for months, price in silver_prices:
 
 # Add prices for Gold
 gold_prices = [
-    (1, 20.00),
-    (3, 50.00),
-    (6, 90.00),
-    (12, 140.00),
+    (1, 200000.00),
+    (3, 500000.00),
+    (6, 900000.00),
+    (12, 1400000.00),
 ]
 for months, price in gold_prices:
     SubscriptionPrice.objects.create(
