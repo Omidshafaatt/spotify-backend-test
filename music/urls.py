@@ -7,7 +7,8 @@ from .views import (
     AlbumDetailView, MyAlbumsListView, ToggleLikeView, RecordStreamView,
     MyPlaylistsListView, 
     PlaylistDetailView,
-    UnifiedSearchView
+    UnifiedSearchView,MyMusicsListView,
+    MusicDetailUpdateDeleteView,AlbumDetailUpdateDeleteView
 )
 
 urlpatterns = [
@@ -39,4 +40,9 @@ urlpatterns = [
     path('search/', UnifiedSearchView.as_view(), name='unified-search'),
 
     path('artists/<int:artist_id>/statistics/', ArtistStatisticsView.as_view(), name='artist-statistics'),
+    path('my-musics/', MyMusicsListView.as_view(), name='my-musics-list'),
+    path('musics/<int:pk>/delete/', MusicDetailUpdateDeleteView.as_view(), name='music-delete'),
+    path('musics/<int:pk>/edit/', MusicDetailUpdateDeleteView.as_view(), name='music-edit'),
+    path('albums/<int:pk>/delete/', AlbumDetailUpdateDeleteView.as_view(), name='album-delete'),
+    path('albums/<int:pk>/edit/', AlbumDetailUpdateDeleteView.as_view(), name='album-edit'),
 ]

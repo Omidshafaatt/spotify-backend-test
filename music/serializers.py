@@ -63,7 +63,7 @@ class MusicSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'album', 'audio_file', 'lyrics', 'cover',
             'genre', 'release_date', 'duration', 'created_at', 'artists',
-            'likes_count', 'streams_count', 'is_liked' 
+            'likes_count', 'streams_count', 'is_liked' ,'collaborators'
         ]
 
     def get_likes_count(self, obj):
@@ -100,7 +100,7 @@ class MusicCreateSerializer(serializers.ModelSerializer):
         model = Music
         fields = [
             'id', 'title', 'album', 'audio_file', 'lyrics', 'cover',
-            'genre', 'release_date', 'duration'
+            'genre', 'release_date', 'duration','collaborators'
         ]
 
     def create(self, validated_data):

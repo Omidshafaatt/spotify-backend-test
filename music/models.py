@@ -61,7 +61,11 @@ class Music(models.Model):
         max_length=100,
         blank=True,
     )
-
+    collaborators = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Comma separated list of collaborating artists"
+    )
     release_date = models.DateField()
 
     duration = models.DurationField()

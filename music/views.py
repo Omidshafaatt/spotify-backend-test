@@ -203,7 +203,28 @@ class ArtistStatisticsView(APIView):
         serializer = ArtistStatisticsSerializer(data)
         return Response(serializer.data)
 
+# 🌟 کلاس جدید ۱: گرفتن لیست آهنگ‌های خود هنرمند
+class MyMusicsListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated, IsArtist]
+    serializer_class = MusicSerializer
+    
+    def get_queryset(self):
+        # فقط آهنگ‌هایی رو برمی‌گردونه که این هنرمند در آن‌ها نقش دارد
+        return Music.objects.filter(
+            music_artists__artist=self.request.user.artist_profile
+        ).distinct().order_by('-created_at')
 
+# 🌟 کلاس جدید ۲: ویرایش و حذف آهنگ
+class MusicDetailUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated, IsArtist]
+    serializer_class = MusicCreateSerializer 
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        # هنرمند فقط مجاز به ویرایش یا حذف آهنگ‌های خودش است
+        return Music.objects.filter(
+            music_artists__artist=self.request.user.artist_profile
+        ).distinct()
 
 class UnifiedSearchView(APIView):
     """
@@ -267,3 +288,12 @@ class UnifiedSearchView(APIView):
             'albums': album_serializer.data,
             'artists': user_serializer.data, 
         })
+
+# 🌟 کلاس جدید برای حذف (و در صورت نیاز ویرایش) آلبوم
+class AlbumDetailUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated, IsArtist]
+    serializer_class = AlbumCreateSerializer
+
+    def get_queryset(self):
+        # هنرمند فقط مجاز به حذف آلبوم‌های خودش است
+        return Album.objects.filter(artist=self.request.user.artist_profile)
