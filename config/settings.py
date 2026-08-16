@@ -51,10 +51,13 @@ INSTALLED_APPS = [
 
     'corsheaders',
 
+    'channels',
+
     'accounts',
     'subscriptions',
     'music',
     'ticket',
+    'rooms',
 ]
 
 MIDDLEWARE = [
@@ -202,3 +205,13 @@ ZARINPAL_VERIFY_URL = (
 FRONTEND_PAYMENT_RESULT_URL = (
     "http://localhost:3000/subscriptions/payment-result"
 )
+
+
+
+ASGI_APPLICATION = 'config.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}

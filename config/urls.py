@@ -36,6 +36,7 @@ urlpatterns = [
     path('music/', include('music.urls')),
     path('subscriptions/', include('subscriptions.urls')),
     path('ticket/', include('ticket.urls')),
+    path('rooms/', include('rooms.urls')),
 
     # OpenAPI schema and Swagger UI
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

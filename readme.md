@@ -91,3 +91,13 @@ pip install djangorestframework-simplejwt
 pip install django-cors-headers
 pip install requests
 pip install python-dateutil
+
+
+python manage.py test accounts
+python manage.py test ticket
+python manage.py test subscriptions
+
+
+pip install channels
+pip install daphne
+daphne -b 127.0.0.1 -p 8000 config.asgi:application
